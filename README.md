@@ -19,7 +19,6 @@ since git history is the record.
 
 ### Setup
 
-- [ ] Commit and push - the repo has no commits yet
 - [ ] Connect the repo in the dashboard (build `npm run build`, deploy
       `npx wrangler deploy`)
 - [ ] Add `BETTER_AUTH_SECRET` as a **Secret** in the dashboard - a fresh value,
