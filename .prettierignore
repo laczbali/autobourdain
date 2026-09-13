@@ -1,0 +1,13 @@
+node_modules/
+package-lock.json
+
+# build output
+apps/mobile/dist/
+apps/mobile/.expo/
+.wrangler/
+
+# generated
+apps/api/migrations/
+worker-configuration.d.ts
+apps/mobile/expo-env.d.ts
+apps/mobile/nativewind-env.d.ts

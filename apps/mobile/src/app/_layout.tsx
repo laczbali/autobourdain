@@ -17,9 +17,7 @@ export default function RootLayout() {
   useEffect(() => {
     // react-native can also report 'unspecified'; 'system' lets NativeWind fall
     // back to Appearance itself.
-    colorScheme.set(
-      systemScheme === 'dark' || systemScheme === 'light' ? systemScheme : 'system',
-    );
+    colorScheme.set(systemScheme === 'dark' || systemScheme === 'light' ? systemScheme : 'system');
   }, [systemScheme]);
 
   return (

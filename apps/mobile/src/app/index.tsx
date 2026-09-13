@@ -56,9 +56,7 @@ export default function Home() {
                 onPress={() => authClient.signOut()}
                 className="items-center rounded-lg border border-neutral-300 px-4 py-3 active:opacity-70 dark:border-neutral-700"
               >
-                <Text className="font-medium text-neutral-900 dark:text-neutral-100">
-                  Sign out
-                </Text>
+                <Text className="font-medium text-neutral-900 dark:text-neutral-100">Sign out</Text>
               </Pressable>
             </>
           ) : (

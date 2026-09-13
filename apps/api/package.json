@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
@@ -15,6 +17,8 @@
     "hono": "^4.13.7"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10"
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "drizzle-kit": "^0.31.10",
+    "vitest": "^4.1.11"
   }
 }

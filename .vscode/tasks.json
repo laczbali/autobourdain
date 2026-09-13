@@ -61,6 +61,41 @@
       }
     },
     {
+      "label": "dev: worker (lan)",
+      "detail": "wrangler dev on 0.0.0.0:8787 - reachable from a phone on the same network",
+      "type": "shell",
+      // --ip 0.0.0.0 binds every interface rather than loopback, which is what
+      // lets Expo Go on a phone reach the API. It still answers on localhost,
+      // but it takes :8787 - so this and "dev: worker" are one or the other.
+      // Windows Defender asks on first run: allow it on Private networks.
+      "command": "npm run dev:api -- --ip 0.0.0.0",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "runOptions": { "instanceLimit": 1 },
+      "presentation": {
+        "group": "dev-servers",
+        "panel": "dedicated",
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "wrangler",
+        "pattern": { "regexp": "^__never__(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(Starting local server|Detected changes|Reloading)",
+          "endsPattern": "Ready on https?://"
+        }
+      }
+    },
+    {
+      "label": "dev: native servers",
+      "detail": "Both servers for a phone: the LAN Worker, and Metro for the QR code",
+      // Parallel - the Worker has no reason to wait on Metro's ~20s start.
+      "dependsOn": ["dev: worker (lan)", "dev: expo"],
+      "problemMatcher": []
+    },
+    {
       "label": "dev: build web",
       "detail": "expo export --platform web -> apps/mobile/dist",
       "type": "shell",

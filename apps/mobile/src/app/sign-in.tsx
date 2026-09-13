@@ -120,9 +120,7 @@ export default function SignIn() {
 
         <Pressable onPress={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}>
           <Text className="text-center text-neutral-500 dark:text-neutral-400">
-            {mode === 'sign-in'
-              ? 'No account? Create one'
-              : 'Already have an account? Sign in'}
+            {mode === 'sign-in' ? 'No account? Create one' : 'Already have an account? Sign in'}
           </Text>
         </Pressable>
       </View>

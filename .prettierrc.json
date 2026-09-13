@@ -1,0 +1,15 @@
+{
+  "singleQuote": true,
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "tailwindConfig": "apps/mobile/tailwind.config.js",
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": ["*.jsonc"],
+      "options": {
+        "trailingComma": "none"
+      }
+    }
+  ],
+  "printWidth": 100
+}

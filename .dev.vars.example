@@ -7,6 +7,11 @@ BETTER_AUTH_SECRET="dev-only-change-me"
 # https://developers.cloudflare.com/turnstile/troubleshooting/testing/
 TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
 
+# The matching always-passes test site key, for the /api/turnstile page the
+# native app loads in a WebView. Overrides wrangler.jsonc locally: the real
+# widget only accepts autobourdain.blaczko.com, not localhost or a LAN IP.
+TURNSTILE_SITE_KEY="1x00000000000000000000AA"
+
 # GitHub OAuth app (https://github.com/settings/developers). One app carries
 # both callback URLs - http://localhost:8787/api/auth/callback/github for here
 # and the deployed origin's for production. The client id is public and lives

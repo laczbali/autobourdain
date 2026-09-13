@@ -25,16 +25,10 @@ since git history is the record.
       domain-specific exists yet; the app is scaffolding plus auth
 - [ ] Replace the placeholder icon, splash and favicon in
       `apps/mobile/assets/images` - they are still Expo's defaults
-- [ ] Pick lint/format tooling. Nothing is configured; `npm run lint` will
-      scaffold an ESLint config on first run if you want that route
-- [ ] Add tests. There is no test setup at all yet
 
 ### Later
 
 - [ ] EAS build configuration for iOS/Android
-- [ ] Replace the native Turnstile stub in
-      `apps/mobile/src/components/turnstile.tsx` with an Expo DOM component.
-      Until then native email sign-in fails closed
 - [ ] Set `EXPO_PUBLIC_API_URL` to the deployed origin for native builds - they
       have no `window.location` to fall back to
 
@@ -79,7 +73,10 @@ blocks.
 GitHub sign-in is optional locally — leave the GitHub values empty and the
 provider is simply not registered. To enable it, create an OAuth app at
 <https://github.com/settings/developers> with callback URL
-`http://localhost:8787/api/auth/callback/github`.
+`http://localhost:8787/api/auth/callback/github`. Testing it on a phone needs a
+second callback on this machine's LAN address
+(`http://192.168.x.x:8787/api/auth/callback/github`): the device reaches the
+Worker there, so that is the origin better-auth hands GitHub.
 
 ### 3. Create the tables
 
@@ -96,9 +93,12 @@ npm run dev:api   # Worker + local D1 on http://localhost:8787
 npm run dev       # Expo dev server on http://localhost:8081
 ```
 
-Open <http://localhost:8081>. The app reads `EXPO_PUBLIC_API_URL` from
-`apps/mobile/.env.development` to find the API; CORS and `trustedOrigins` are
-already configured for that pair of ports.
+Open <http://localhost:8081>. Nothing points the app at the API: in
+development it puts the Worker on port 8787 of whichever host served the bundle
+(`apps/mobile/src/lib/config.ts`), which is localhost in a browser and this
+machine's LAN address on a phone. Set `EXPO_PUBLIC_API_URL` to override that -
+to work against the deployed API, say. CORS and `trustedOrigins` are already
+configured for the dev pair of ports.
 
 To check what production will actually serve (single origin, real static
 assets, no hot reload):
@@ -106,6 +106,72 @@ assets, no hot reload):
 ```bash
 npm run preview   # builds the web export, then serves it from the Worker
 ```
+
+## Linting and formatting
+
+ESLint for rules, Prettier for formatting, with `eslint-config-prettier` last in
+the chain so the two never disagree about style.
+
+```bash
+npm run lint          # eslint across all three workspaces
+npm run lint:fix      # ...and fix what it can
+npm run format        # prettier --write
+npm run format:check  # verify only, changes nothing
+```
+
+`npm run lint` is one of the deploy checks, so keep it green. The setup is
+type-aware on `.ts`/`.tsx`: `no-floating-promises`, `no-misused-promises` and
+`await-thenable` use the TypeScript program, which is how an unawaited promise
+in a Worker handler gets caught. Expo's React Native rules apply to
+`apps/mobile` only.
+
+Prettier sorts NativeWind classNames via `prettier-plugin-tailwindcss`, reading
+`apps/mobile/tailwind.config.js`.
+
+Line endings are LF everywhere. `.gitattributes` (`* text=auto eol=lf`) checks
+out LF on every platform regardless of the developer's `core.autocrlf`, and
+Prettier is on `endOfLine: lf` to match, so a stray CRLF is a formatting error
+rather than something the tooling quietly accepts.
+
+## Testing
+
+```bash
+npm test                       # both workspaces
+npm test -w @autobourdain/api  # just the Worker
+npm run test:watch -w @autobourdain/api
+```
+
+`npm test` is one of the deploy checks.
+
+The API tests run **inside the Workers runtime**, through
+`@cloudflare/vitest-pool-workers`: the real `wrangler.jsonc`, the real Hono app,
+and a real local D1 with `apps/api/migrations` applied before every test file.
+They live in `apps/api/test`, and they cover health, routing, CORS, the trusted
+origin list, email sign-up and sign-in, the Turnstile gate and the conditional
+GitHub provider.
+
+Three things to know before adding more:
+
+- **Storage is isolated per test file, not per test.** Everything in one file
+  shares a database, so anything that writes a row takes a unique email from
+  `testUser()` in `test/helpers.ts`.
+- **Turnstile is verified over the real network**, against Cloudflare's
+  always-passes test secret, with the always-fails one (`2x00...AA`) swapped in
+  for the rejection path. So the auth tests need internet. Swapping them to
+  `cloudflare:test`'s `fetchMock` is a small change if that ever grates.
+- **Bindings come from `vitest.config.ts`, not `.dev.vars`.** A test run must
+  not depend on local secrets, or change when someone edits theirs.
+
+Tests that need a different configuration than the Worker booted with - a
+failing captcha secret, GitHub credentials - call the Hono app directly with an
+overridden env rather than going through the Worker. See `envWith()`.
+
+`apps/mobile` runs on jest-expo, with React Native Testing Library installed
+and one test written: `src/lib/config.test.ts`, over how the API URL is
+resolved. The preset is the native one, so tests render the React Native tree
+rather than DOM; note that RNTL 14's `render` is async and has to be awaited.
+Anything importing `config.ts` needs it loaded per case, since it resolves the
+URL once at import.
 
 ## Debugging (VS Code)
 
@@ -118,6 +184,15 @@ reattaches.
 The servers run as background tasks and deliberately outlive the debug session,
 so stopping and restarting debugging does not pay Metro's ~20s startup again.
 Shut them down with the **dev: stop servers** task (Command Palette → Run Task).
+
+**Native: Expo Go on a phone** is the same idea for a device: Metro plus a
+Worker bound to `0.0.0.0`, since a phone's `localhost` is the phone. Scan the QR
+code in the **dev: expo** terminal. There is no address to configure — the app
+derives the API from the dev server it loaded the bundle from — but Windows
+Defender asks to allow both servers on Private networks the first time. It runs
+its own Worker task, so run **dev: stop servers** when switching between this
+and **Dev: full stack** — they both want `:8787`. Breakpoints land in
+`apps/api`; app-side breakpoints need the Expo Tools extension.
 
 Other configs: **Web: Chrome against Worker preview** builds the web export and
 serves it from the Worker, which is what production actually looks like — one
@@ -153,6 +228,7 @@ merging `develop` into it when a deploy is wanted.
 
    To apply migrations on every deploy, use instead:
    `npx wrangler d1 migrations apply autobourdain --remote && npx wrangler deploy`
+
 3. After the first deploy, in **Settings → Variables and Secrets**, add
    **Secrets** (not variables):
    - `BETTER_AUTH_SECRET` — a fresh random value, not the dev one
@@ -165,12 +241,14 @@ merging `develop` into it when a deploy is wanted.
    ⚠️ Not in the dashboard. `wrangler deploy` replaces plain-text variables with
    whatever `wrangler.jsonc` says, so a value set in the UI disappears on the
    next deploy. Secrets are preserved, which is why they go the other way.
+
 5. Point the GitHub OAuth app's callback at
    `<BETTER_AUTH_URL>/api/auth/callback/github`.
 6. In **Turnstile → Add widget**, create a **Managed** widget for
    `autobourdain.blaczko.com`. Its Secret Key is the `TURNSTILE_SECRET_KEY`
-   above; its Site Key goes into `apps/mobile/.env.production` and is committed
-   — it is public, and has to be in the bundle at build time.
+   above; its Site Key goes into `apps/mobile/.env.production` for the web
+   bundle and `wrangler.jsonc` for the native WebView page, and is committed in
+   both — it is public, and has to be in the bundle at build time.
 
 The D1 binding comes from `wrangler.jsonc`, so no database wiring is needed in
 the dashboard.
@@ -185,32 +263,66 @@ Cloudflare before the request reaches the auth handler.
 The plugin is registered unconditionally, so a missing `TURNSTILE_SECRET_KEY`
 breaks those three endpoints loudly rather than quietly leaving them ungated.
 
+Native has no DOM to render the widget into, so the app loads `/api/turnstile`
+— the widget as a standalone page, served by the Worker — in a WebView, and
+reads the token back over the WebView bridge. Serving it from the Worker is the
+point: Cloudflare checks the widget against the hostnames registered for it, and
+the page shares an origin with the web app, so one widget covers both. Its site
+key is `TURNSTILE_SITE_KEY` in `wrangler.jsonc`, and `.dev.vars` swaps in the
+test key locally — the real widget accepts neither `localhost` nor a LAN IP.
+
 GitHub sign-in is not gated — the credential exchange happens on github.com,
 behind GitHub's own abuse checks.
 
-## Going to mobile later
+## On a phone
 
-The Turnstile widget is the one web-only piece; everything else already builds
-for native. When you want native builds:
+The app runs on a device through Expo Go today — Turnstile, email sign-in and
+GitHub sign-in all work against the local Worker. Same two servers as the web,
+except the Worker has to listen beyond loopback for the phone to reach it:
 
-- Replace the stub in `apps/mobile/src/components/turnstile.tsx`. Turnstile has
-  no React Native binding, so this wants an Expo DOM component (`'use dom'`),
-  which runs the web widget in a WebView. Until then it returns no token and
-  native email sign-in fails closed against the gated API.
-- Set `EXPO_PUBLIC_API_URL` to `https://autobourdain.blaczko.com` — native has
-  no `window.location` to fall back to.
-- Sessions already use SecureStore on native via better-auth's Expo client.
-- The app scheme is `autobourdain` and is already in `trustedOrigins` for
-  OAuth redirects.
-- Add EAS (`npx eas build:configure`) when you need store builds.
+```bash
+npm run dev:api -- --ip 0.0.0.0        # every interface, not just localhost
+npm run start -w @autobourdain/mobile  # Metro, with the QR code
+```
+
+Scan the QR code with Expo Go on Android, or the Camera app on iOS. In VS Code
+the **Native: Expo Go on a phone** launch config does both and attaches the
+Worker debugger. The phone has to be on the same network, and Windows Defender
+asks to allow the servers on Private networks the first time.
+
+Nothing needs configuring for the address: the app puts the API on port 8787 of
+the host it loaded the bundle from, which is this machine's LAN address on a
+phone and localhost in a browser (`apps/mobile/src/lib/config.ts`).
+
+Sessions live in SecureStore rather than a cookie, via better-auth's Expo
+client, and the API takes the token from a header — that part is the same in
+Expo Go as in a real build.
+
+The one thing Expo Go does differently is deep links: it returns to
+`exp://<host>:8081` rather than the `autobourdain` scheme, which it cannot use.
+better-auth's Expo plugin trusts `exp://` in development only, so that is a
+dev-time arrangement; a real build uses the scheme, which is already in
+`trustedOrigins`. The second GitHub callback URL is a separate matter - it is
+the Worker origin the phone talks to, and therefore the `redirect_uri` GitHub
+is asked to come back to.
+
+For store builds:
+
+- Add EAS (`npx eas build:configure`).
+- Set `EXPO_PUBLIC_API_URL` to `https://autobourdain.blaczko.com`. A release
+  build has neither a dev server nor a `window.location` to derive from.
+- Turnstile needs nothing extra. The widget page is served by the Worker, so a
+  build pointed at production loads it from the production origin — the one the
+  widget is registered for.
 
 ## API
 
-| Route             | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| `GET /api/health` | Liveness check                           |
-| `/api/auth/*`     | better-auth: sign-up, sign-in, OAuth     |
-| `GET /api/me`     | Current user, or `null`                  |
+| Route                | Purpose                                       |
+| -------------------- | --------------------------------------------- |
+| `GET /api/health`    | Liveness check                                |
+| `/api/auth/*`        | better-auth: sign-up, sign-in, OAuth          |
+| `GET /api/me`        | Current user, or `null`                       |
+| `GET /api/turnstile` | Turnstile widget page, for the native WebView |
 
 Anything not under `/api/` is served from the web build, with unknown paths
 falling back to `index.html` so client-side routes work on reload.

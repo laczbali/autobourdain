@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { createAuth, trustedOrigins } from './auth';
+import { turnstilePage } from './turnstile-page';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -42,6 +43,16 @@ app.get('/api/me', async (c) => {
   const auth = createAuth(c.env, new URL(c.req.url).origin);
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   return c.json<MeResponse>({ user: session?.user ?? null });
+});
+
+// The Turnstile widget as a page, for the native app to load in a WebView -
+// see apps/api/src/turnstile-page.ts. Public and GET-only: the site key it
+// carries is public by design, and nothing here touches the session.
+app.get('/api/turnstile', (c) => {
+  const theme = c.req.query('theme');
+  return c.html(
+    turnstilePage(c.env.TURNSTILE_SITE_KEY, theme === 'dark' || theme === 'light' ? theme : 'auto'),
+  );
 });
 
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));

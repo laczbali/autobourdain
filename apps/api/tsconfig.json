@@ -12,5 +12,10 @@
     "resolveJsonModule": true,
     "types": ["../../worker-configuration"]
   },
-  "include": ["src/**/*.ts", "drizzle.config.ts", "../../worker-configuration.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "drizzle.config.ts",
+    "vitest.config.ts",
+    "../../worker-configuration.d.ts"
+  ]
 }

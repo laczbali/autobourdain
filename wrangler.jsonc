@@ -40,7 +40,12 @@
     // in plain sight, so only the client secret needs protecting. It lives here
     // rather than the dashboard because `wrangler deploy` wipes dashboard-set
     // vars on every deploy.
-    "GITHUB_CLIENT_ID": "Ov23lixT5BzlLwkwwUJp"
+    "GITHUB_CLIENT_ID": "Ov23lixT5BzlLwkwwUJp",
+    // Turnstile site key, used by the /api/turnstile page the native app loads
+    // in a WebView. Public, like the copy in apps/mobile/.env.production that
+    // the web bundle carries - the two have to name the same widget. .dev.vars
+    // overrides it locally with the always-passes test key.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAEy5fMfT6fXQ_yVs"
   }
 
   // Secrets (set via `npx wrangler secret put <NAME>` or the Cloudflare UI):

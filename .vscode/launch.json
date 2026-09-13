@@ -3,8 +3,11 @@
   // Expo dev server (see tasks.json), attaches to the Worker, and opens Chrome
   // on the app. Fast refresh and Worker reload both stay live throughout.
   //
-  // For native (iOS/Android) debugging later, install the Expo Tools extension
-  // recommended in apps/mobile/.vscode/extensions.json.
+  // "Native: Expo Go on a phone" is the device equivalent: the same two
+  // servers, with the Worker bound to the LAN so the phone can reach it, and
+  // the Worker debugger attached. For breakpoints in app code rather than the
+  // API, install the Expo Tools extension recommended in
+  // apps/mobile/.vscode/extensions.json.
   "version": "0.2.0",
   "configurations": [
     {
@@ -24,7 +27,26 @@
       // debugger accept source maps from anywhere instead of filtering them.
       "resolveSourceMapLocations": null,
       "attachExistingChildren": false,
-      "autoAttachChildProcesses": false
+      "autoAttachChildProcesses": false,
+      "presentation": { "hidden": true }
+    },
+    {
+      // The same attach, for the native flow. The phone reaches the Worker over
+      // the LAN, so it has to be the 0.0.0.0 server - hence a second config
+      // rather than a flag, since a preLaunchTask cannot be parameterised. This
+      // one starts nothing: the compound below brings both servers up first.
+      "name": "Worker: attach to wrangler dev (LAN)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "cwd": "${workspaceFolder}",
+      "restart": true,
+      "timeout": 30000,
+      "sourceMaps": true,
+      "resolveSourceMapLocations": null,
+      "attachExistingChildren": false,
+      "autoAttachChildProcesses": false,
+      "presentation": { "hidden": true }
     },
     {
       // Breakpoints in apps/mobile, with fast refresh. The app calls the
@@ -35,7 +57,8 @@
       "url": "http://localhost:8081",
       "webRoot": "${workspaceFolder}/apps/mobile",
       "preLaunchTask": "dev: expo",
-      "sourceMaps": true
+      "sourceMaps": true,
+      "presentation": { "hidden": true }
     },
     {
       // The production shape: one origin, built static assets, no fast refresh.
@@ -46,19 +69,35 @@
       "url": "http://localhost:8787",
       "webRoot": "${workspaceFolder}/apps/mobile",
       "preLaunchTask": "dev: preview",
-      "sourceMaps": true
+      "sourceMaps": true,
+      "presentation": { "hidden": true }
     }
   ],
   "compounds": [
     {
       // The everyday one. Starts both servers, debugs both sides.
       "name": "Dev: full stack",
-      "configurations": [
-        "Worker: attach to wrangler dev",
-        "Web: Chrome against Expo dev server"
-      ],
+      "configurations": ["Worker: attach to wrangler dev", "Web: Chrome against Expo dev server"],
       "stopAll": true,
       "presentation": { "group": "dev", "order": 1 }
+    },
+    {
+      // The app on a real phone, through Expo Go. Starts the Worker bound to
+      // the LAN and Metro, then attaches to the Worker - so breakpoints in
+      // apps/api still work while the app runs on the device. Scan the QR code
+      // in the "dev: expo" terminal (Camera on iOS, Expo Go itself on Android).
+      //
+      // No address to configure: the app asks Expo which host it loaded the
+      // bundle from and puts the Worker on port 8787 of it (src/lib/config.ts),
+      // so a phone reaches the API wherever this machine sits on the network.
+      //
+      // Breakpoints in app code are a separate matter: that needs the Expo
+      // Tools extension, or Metro's own `j` shortcut to open the debugger.
+      "name": "Native: Expo Go on a phone",
+      "preLaunchTask": "dev: native servers",
+      "configurations": ["Worker: attach to wrangler dev (LAN)"],
+      "stopAll": true,
+      "presentation": { "group": "dev", "order": 2 }
     }
   ]
 }

@@ -31,8 +31,10 @@ nothing.
   1. Working tree is clean - nothing pending, nothing staged.
   2. `develop` is pushed - no commits ahead of `origin/develop`.
   3. `npm run typecheck` passes.
-  4. `npm run build` passes.
-  5. Migrations in `apps/api/migrations` are applied remotely
+  4. `npm run lint` passes.
+  5. `npm test` passes.
+  6. `npm run build` passes.
+  7. Migrations in `apps/api/migrations` are applied remotely
      (`npm run db:migrate:remote`). The code must never reach production ahead
      of its schema.
 - On a failure, report it and stop. Do not fix it as part of the deploy - that
@@ -88,12 +90,12 @@ Two deliberate exceptions:
 
 ## Layout
 
-| Path               | What                                                        |
-| ------------------ | ----------------------------------------------------------- |
-| `apps/mobile`      | Expo app (expo-router, NativeWind, TanStack Query)           |
-| `apps/api`         | Worker: Hono routes, better-auth, Drizzle schema, migrations |
-| `packages/shared`  | Types shared by both sides                                   |
-| `wrangler.jsonc`   | The single Worker: static assets + API + D1 binding          |
+| Path              | What                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| `apps/mobile`     | Expo app (expo-router, NativeWind, TanStack Query)           |
+| `apps/api`        | Worker: Hono routes, better-auth, Drizzle schema, migrations |
+| `packages/shared` | Types shared by both sides                                   |
+| `wrangler.jsonc`  | The single Worker: static assets + API + D1 binding          |
 
 npm workspaces. Install from the repo root, never from inside a workspace.
 
@@ -104,6 +106,9 @@ npm run dev          # Expo dev server on :8081
 npm run dev:api      # wrangler dev on :8787 (needed by the app)
 npm run preview      # build the web export, then serve it from the Worker
 npm run typecheck    # all workspaces
+npm run lint         # eslint, all workspaces (--fix via npm run lint:fix)
+npm test             # vitest (api) + jest (mobile), all workspaces
+npm run format       # prettier --write (npm run format:check to verify only)
 npm run db:generate  # drizzle-kit: schema change -> migration
 npm run db:migrate   # apply migrations to local D1
 ```
@@ -113,9 +118,13 @@ npm run db:migrate   # apply migrations to local D1
 - Routes live in `apps/mobile/src/app`; `@/*` maps to `apps/mobile/src/*`.
 - Styling is NativeWind classNames, not StyleSheet. Keep Tailwind on v3 —
   NativeWind 4 does not support Tailwind 4.
+- API tests live in `apps/api/test` and run inside the Workers runtime against a
+  real local D1. Storage is isolated per test _file_, not per test, so anything
+  writing a row uses a unique email - see `testUser()` in `test/helpers.ts`.
+  Bindings come from `vitest.config.ts`, never `.dev.vars`.
 - Schema changes: edit `apps/api/src/db/schema.ts`, then `npm run db:generate`.
   Never hand-edit files in `apps/api/migrations`.
-- better-auth field names are looked up by the *property* name in the Drizzle
+- better-auth field names are looked up by the _property_ name in the Drizzle
   schema, not the SQL column name. Don't rename those properties.
 - The auth instance is built per request (`createAuth(env, origin)`) because D1
   bindings only exist per request.
@@ -129,3 +138,11 @@ npm run db:migrate   # apply migrations to local D1
   and this app is `output: 'single'`.
 - Web-only for now, but keep code cross-platform: no `window`/`document` without
   a `Platform.OS === 'web'` guard.
+- ESLint is pinned to **v9** on purpose. `eslint-plugin-import` and
+  `eslint-plugin-react`, both pulled in by `eslint-config-expo`, still cap their
+  peer range at 9 - installing ESLint 10 breaks the import resolver at runtime.
+  Revisit when those plugins ship ESLint 10 support.
+- Prettier owns formatting and `eslint-config-prettier` is loaded last, so
+  ESLint never reports style. `printWidth` is 100 and `endOfLine` is `lf`, which
+  `.gitattributes` (`* text=auto eol=lf`) guarantees - every checkout is LF
+  whatever the developer's `core.autocrlf` happens to be.
