@@ -4,6 +4,8 @@
 // and in .dev.vars for local development.
 interface Env {
   BETTER_AUTH_SECRET: string;
+  // Turnstile. Required - sign-in and sign-up fail without it.
+  TURNSTILE_SECRET_KEY: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
 }

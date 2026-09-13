@@ -1,6 +1,7 @@
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { captcha } from 'better-auth/plugins';
 import { drizzle } from 'drizzle-orm/d1';
 
 import * as schema from './db/schema';
@@ -42,9 +43,25 @@ export function createAuth(env: Env, requestOrigin: string) {
     emailAndPassword: { enabled: true },
     socialProviders: github,
     trustedOrigins: trustedOrigins(env),
-    // Stores the session in SecureStore on native and keeps the web client
-    // working when it is served from a different origin than the API (dev).
-    plugins: [expo()],
+    // Cloudflare sits in front of every request, so its own header is the one
+    // that cannot be spoofed by the client. Turnstile gets the IP from here.
+    advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] } },
+    plugins: [
+      // Stores the session in SecureStore on native and keeps the web client
+      // working when it is served from a different origin than the API (dev).
+      expo(),
+      // Turnstile, checked before the request reaches the handler. Registered
+      // unconditionally on purpose: a missing secret should break sign-in
+      // loudly rather than quietly leave these endpoints ungated. The paths are
+      // better-auth's own defaults, spelled out so an upgrade cannot widen or
+      // narrow what is gated. GitHub sign-in is not covered - the exchange
+      // happens on github.com, behind their abuse checks.
+      captcha({
+        provider: 'cloudflare-turnstile',
+        secretKey: env.TURNSTILE_SECRET_KEY,
+        endpoints: ['/sign-up/email', '/sign-in/email', '/request-password-reset'],
+      }),
+    ],
   });
 }
 

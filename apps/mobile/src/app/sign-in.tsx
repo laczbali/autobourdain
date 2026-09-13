@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { Turnstile, type TurnstileHandle } from '@/components/turnstile';
 import { authClient } from '@/lib/auth-client';
 
 type Mode = 'sign-in' | 'sign-up';
@@ -12,22 +13,34 @@ export default function SignIn() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   async function submit() {
+    if (!captchaToken) {
+      setError('Please complete the verification below.');
+      return;
+    }
+
     setPending(true);
     setError(null);
 
+    // The captcha plugin reads this header and verifies with Cloudflare before
+    // the request reaches better-auth's handler.
+    const fetchOptions = { headers: { 'x-captcha-response': captchaToken } };
     const result =
       mode === 'sign-in'
-        ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({ name, email, password });
+        ? await authClient.signIn.email({ email, password, fetchOptions })
+        : await authClient.signUp.email({ name, email, password, fetchOptions });
 
     setPending(false);
 
     if (result.error) {
       setError(result.error.message ?? 'Something went wrong.');
+      // Turnstile tokens are single-use, so a retry with the same one fails.
+      turnstile.current?.reset();
       return;
     }
     router.replace('/');
@@ -77,6 +90,8 @@ export default function SignIn() {
           autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
           className="rounded-lg border border-neutral-300 px-4 py-3 text-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
         />
+
+        <Turnstile ref={turnstile} onToken={setCaptchaToken} />
 
         {error && <Text className="text-red-600 dark:text-red-400">{error}</Text>}
 

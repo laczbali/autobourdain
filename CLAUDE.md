@@ -7,6 +7,8 @@ both the web build and the API, backed by D1.
 
 - **`develop` is the working branch.** All development happens there unless
   specified otherwise.
+- **`release` is what Cloudflare deploys.** It only ever moves by merging
+  `develop` into it, on request - see Deploying. Never commit to it directly.
 - **Do NOT make commits unless specifically asked.**
 - Commit messages must be VERY brief.
 - Extra detail goes in the commit description, as a bullet list of BRIEF points.
@@ -18,11 +20,43 @@ fix session refresh
 - retry once
 ```
 
+## Deploying
+
+Cloudflare builds from the **`release`** branch. Pushing `develop` deploys
+nothing.
+
+- **Only deploy when specifically asked.** Never merge into `release` off your
+  own initiative, and never as a follow-on to some other task.
+- When asked, run every check first, in order, and stop at the first failure:
+  1. Working tree is clean - nothing pending, nothing staged.
+  2. `develop` is pushed - no commits ahead of `origin/develop`.
+  3. `npm run typecheck` passes.
+  4. `npm run build` passes.
+  5. Migrations in `apps/api/migrations` are applied remotely
+     (`npm run db:migrate:remote`). The code must never reach production ahead
+     of its schema.
+- On a failure, report it and stop. Do not fix it as part of the deploy - that
+  is separate work, and it gets its own go-ahead.
+- If everything checks out, ask outright - **"Are you sure you want to deploy?
+  yes/no"** - and wait. Anything but yes means stop.
+- On yes: merge `develop` into `release` and push. Then switch back to
+  `develop`.
+
 ## Working style
 
 Do not make assumptions. When a decision could reasonably go more than one way -
 scope, library, data shape, naming, where a thing lives - ask before building.
 A short question costs less than the wrong implementation.
+
+**A question is a question.** When I ask one, answer it - do not touch files.
+Reading code to answer properly is fine; editing is not. If the answer suggests
+a change, say what you would change and stop there. Implement only when I
+actually ask for it.
+
+**A plan is a plan.** When I ask you to plan, plan - and stop. Answering your
+questions is not a green light: the answers feed the plan, they do not start
+the work. End with a short summary of what you would do and ask outright
+whether to begin. Only an explicit yes starts the implementation.
 
 ## Todo list
 
@@ -44,7 +78,7 @@ domains.
 Two deliberate exceptions:
 
 - **Migrations stay on the CLI**
-  (`npx wrangler d1 migrations apply autobourdain-db --remote`). They are
+  (`npx wrangler d1 migrations apply autobourdain --remote`). They are
   generated from `apps/api/src/db/schema.ts` and versioned with the code, so
   pasting SQL into the dashboard console would desync them.
 - **Bindings and plain vars live in `wrangler.jsonc`**, never the dashboard.

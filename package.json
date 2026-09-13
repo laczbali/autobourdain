@@ -15,8 +15,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "cf-typegen": "wrangler types",
     "db:generate": "npm run db:generate -w @autobourdain/api",
-    "db:migrate": "wrangler d1 migrations apply autobourdain-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply autobourdain-db --remote",
+    "db:migrate": "wrangler d1 migrations apply autobourdain --local",
+    "db:migrate:remote": "wrangler d1 migrations apply autobourdain --remote",
     "db:studio": "npm run db:studio -w @autobourdain/api"
   },
   "devDependencies": {

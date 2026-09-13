@@ -15,7 +15,8 @@ app.use('/api/*', (c, next) => {
   return cors({
     origin: (origin) => (allowed.includes(origin) ? origin : null),
     credentials: true,
-    allowHeaders: ['Content-Type', 'Authorization'],
+    // x-captcha-response carries the Turnstile token on sign-in/sign-up.
+    allowHeaders: ['Content-Type', 'Authorization', 'x-captcha-response'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     // The Expo client reads the session token from this header.
     exposeHeaders: ['set-auth-token'],

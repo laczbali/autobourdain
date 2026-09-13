@@ -11,3 +11,11 @@ export const API_URL =
   (Platform.OS === 'web' && typeof window !== 'undefined'
     ? window.location.origin
     : 'http://localhost:8787');
+
+/**
+ * Turnstile site key. Public by design - it is baked into the web bundle at
+ * export time, which is why it lives in .env.development / .env.production
+ * rather than in wrangler.jsonc or the dashboard. The matching secret is a
+ * Worker secret; see apps/api/src/auth.ts.
+ */
+export const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? '';
