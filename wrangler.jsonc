@@ -35,9 +35,14 @@
     "BETTER_AUTH_URL": "https://autobourdain.blaczko.com",
     // Comma-separated extra origins allowed to call the API with credentials
     // (the Expo dev server, mostly). Production is same-origin.
-    "TRUSTED_ORIGINS": "http://localhost:8081,http://localhost:19006"
+    "TRUSTED_ORIGINS": "http://localhost:8081,http://localhost:19006",
+    // GitHub OAuth app client id. Public - it travels in the authorization URL
+    // in plain sight, so only the client secret needs protecting. It lives here
+    // rather than the dashboard because `wrangler deploy` wipes dashboard-set
+    // vars on every deploy.
+    "GITHUB_CLIENT_ID": "Ov23lixT5BzlLwkwwUJp"
   }
 
   // Secrets (set via `npx wrangler secret put <NAME>` or the Cloudflare UI):
-  //   BETTER_AUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+  //   BETTER_AUTH_SECRET, GITHUB_CLIENT_SECRET, TURNSTILE_SECRET_KEY
 }
