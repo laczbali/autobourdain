@@ -19,11 +19,6 @@ Deployed at <https://autobourdain.blaczko.com>.
 Kept current as work lands - finished items are deleted rather than ticked off,
 since git history is the record.
 
-### Setup
-
-- [ ] Connect the repo in the dashboard - production branch `release`, build
-      `npm run build`, deploy `npx wrangler deploy`
-
 ### Next up
 
 - [ ] Decide what the app actually does - data model and first screens. Nothing
