@@ -1,0 +1,97 @@
+{
+  // Background dev servers, started for you by the debug configs in
+  // launch.json. Both hot-reload on save, so they are meant to stay running
+  // between debug sessions - stopping a session does not kill them (restarting
+  // Metro costs ~20s). To shut them down, run the "dev: stop servers" task.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev: worker",
+      "detail": "wrangler dev on :8787 - API, local D1, inspector on :9229",
+      "type": "shell",
+      "command": "npm run dev:api",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      // Reuse the running server instead of starting a second one on re-launch.
+      "runOptions": { "instanceLimit": 1 },
+      "presentation": {
+        "group": "dev-servers",
+        "panel": "dedicated",
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "wrangler",
+        // Deliberately never matches - wrangler's output is not a problem list.
+        // The pattern only exists to carry the background markers below.
+        "pattern": { "regexp": "^__never__(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(Starting local server|Detected changes|Reloading)",
+          "endsPattern": "Ready on https?://"
+        }
+      }
+    },
+    {
+      "label": "dev: expo",
+      "detail": "Expo dev server on :8081 - Metro, fast refresh",
+      "type": "shell",
+      // `start`, not `dev` (`expo start --web`): --web opens your default
+      // browser, and the Chrome debug session is what should open the app.
+      // The port is pinned because Expo silently offers to move to 8082 when
+      // 8081 is taken, which would leave the Chrome config on the wrong port.
+      "command": "npm run start -w @autobourdain/mobile -- --port 8081",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "runOptions": { "instanceLimit": 1 },
+      "presentation": {
+        "group": "dev-servers",
+        "panel": "dedicated",
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "expo",
+        "pattern": { "regexp": "^__never__(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(Starting Metro Bundler|Bundling)",
+          "endsPattern": "(Waiting on https?://|Web Bundled)"
+        }
+      }
+    },
+    {
+      "label": "dev: build web",
+      "detail": "expo export --platform web -> apps/mobile/dist",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "group": "dev-servers", "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: preview",
+      "detail": "Build the web export, then serve it from the Worker (no fast refresh)",
+      "dependsOn": ["dev: build web", "dev: worker"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: stop servers",
+      "detail": "Terminate the background dev servers",
+      "type": "shell",
+      "command": "echo ${input:terminateAllTasks}",
+      "presentation": { "reveal": "never", "close": true },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      // Runs VS Code's own "Terminate Task" command with terminateAll.
+      "id": "terminateAllTasks",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "terminateAll"
+    }
+  ]
+}

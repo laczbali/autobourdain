@@ -1,0 +1,64 @@
+{
+  // Press F5 with "Dev: full stack" selected: it starts wrangler dev and the
+  // Expo dev server (see tasks.json), attaches to the Worker, and opens Chrome
+  // on the app. Fast refresh and Worker reload both stay live throughout.
+  //
+  // For native (iOS/Android) debugging later, install the Expo Tools extension
+  // recommended in apps/mobile/.vscode/extensions.json.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Breakpoints in apps/api: Hono routes, better-auth, Drizzle queries.
+      // wrangler dev exposes the workerd inspector on 9229 by default, and
+      // reattaches itself after each reload.
+      "name": "Worker: attach to wrangler dev",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "dev: worker",
+      "restart": true,
+      "timeout": 30000,
+      "sourceMaps": true,
+      // workerd reports module paths that do not exist on disk, so let the
+      // debugger accept source maps from anywhere instead of filtering them.
+      "resolveSourceMapLocations": null,
+      "attachExistingChildren": false,
+      "autoAttachChildProcesses": false
+    },
+    {
+      // Breakpoints in apps/mobile, with fast refresh. The app calls the
+      // Worker on :8787 (see apps/mobile/.env.development).
+      "name": "Web: Chrome against Expo dev server",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8081",
+      "webRoot": "${workspaceFolder}/apps/mobile",
+      "preLaunchTask": "dev: expo",
+      "sourceMaps": true
+    },
+    {
+      // The production shape: one origin, built static assets, no fast refresh.
+      // Rebuild by re-launching this config.
+      "name": "Web: Chrome against Worker preview",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8787",
+      "webRoot": "${workspaceFolder}/apps/mobile",
+      "preLaunchTask": "dev: preview",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      // The everyday one. Starts both servers, debugs both sides.
+      "name": "Dev: full stack",
+      "configurations": [
+        "Worker: attach to wrangler dev",
+        "Web: Chrome against Expo dev server"
+      ],
+      "stopAll": true,
+      "presentation": { "group": "dev", "order": 1 }
+    }
+  ]
+}

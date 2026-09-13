@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "autobourdain",
+  "main": "apps/api/src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // The Expo web export is served as static assets by this same Worker.
+  // `run_worker_first` keeps /api/* from being swallowed by the SPA fallback.
+  "assets": {
+    "directory": "apps/mobile/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Create with: npx wrangler d1 create autobourdain-db
+  // then paste the returned database_id below (it is not a secret).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "autobourdain",
+      "database_id": "77ef34df-c6cf-4252-ba7f-5b528a158e38",
+      "migrations_dir": "apps/api/migrations"
+    }
+  ],
+
+  "vars": {
+    // Public origin of the deployed Worker. Leave empty for local dev, where
+    // it falls back to the incoming request origin.
+    "BETTER_AUTH_URL": "",
+    // Comma-separated extra origins allowed to call the API with credentials
+    // (the Expo dev server, mostly). Production is same-origin.
+    "TRUSTED_ORIGINS": "http://localhost:8081,http://localhost:19006"
+  }
+
+  // Secrets (set via `npx wrangler secret put <NAME>` or the Cloudflare UI):
+  //   BETTER_AUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+}
