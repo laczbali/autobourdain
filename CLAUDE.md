@@ -80,21 +80,36 @@ Two deliberate exceptions:
 | `apps/api`        | Worker: Hono routes, better-auth, Drizzle schema, migrations |
 | `packages/shared` | Types shared by both sides                                   |
 | `wrangler.jsonc`  | The single Worker: static assets + API + D1 binding          |
-| `design`          | UI wireframes exported from Claude Design - guidance only    |
+| `design`          | Wireframes and the `2e` hi-fi pass, from Claude Design       |
 
 npm workspaces. Install from the repo root, never from inside a workspace.
 
 ### The design files
 
-`design/` is **general guidance, not a specification.** The wireframes show the
-intended direction - layout, hierarchy, tone, roughly what belongs on a screen.
-They are not immutable goals and they are not kept in sync with the code.
+`design/` holds two kinds of frame, and they answer different questions. Read
+both before building a screen, and do not treat them as interchangeable.
 
-- Treat a wireframe as the starting point for a screen, not as a pixel target.
-- Deviate where the platform, the data we actually have, or a later decision
-  calls for it. Say what you deviated from and why.
-- Where a wireframe and the code disagree, the code wins. The wireframes are
-  never re-exported to match it.
+**The hi-fi pass - `2e`, with its palettes in `2e-1`, `2e-2`, `2e-1b`, `2e-2b`
+
+- is what the app looks like.** It is the only frame drawn at real fidelity, and
+  every visual decision comes from it: fills, rules, spacing, type sizes, weights,
+  and how state is marked. Its vocabulary is editorial and quiet - the chrome is
+  unfilled canvas separated by hairlines, panels are reserved for content, and the
+  current item is marked with an accent rule rather than a filled pill.
+
+**The wireframes - `D1d`, `D2c`, `D3a`, `D4a-*`, `d5b` - are content and flow
+only.** They say what belongs on a screen and roughly in what order. Their
+boxes, fills, blocked-in nav and proportions are placeholder drawing, not a
+design, and copying them produces a screen that looks nothing like this app.
+
+- A new screen takes its content from the wireframe and its treatment from `2e`.
+  Where a wireframe covers something `2e` never drew, extend `2e`'s vocabulary
+  rather than falling back on the wireframe's look.
+- Both are **general guidance, not a specification**, and neither is kept in
+  sync with the code. Deviate where the platform, the data we actually have, or
+  a later decision calls for it - and say what you deviated from and why.
+- Where a frame and the code disagree, the code wins. Neither is ever
+  re-exported to match it.
 
 ## Commands
 

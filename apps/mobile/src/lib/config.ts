@@ -42,6 +42,19 @@ export const API_URL =
     : `http://localhost:${DEV_API_PORT}`);
 
 /**
+ * Where the app itself is served from, for the one thing that has to come back
+ * to it: an OAuth redirect. In production this is `API_URL` - one Worker serves
+ * both - and in development it is not, since Metro is on 8081 and the Worker on
+ * 8787. A relative callback cannot express that: better-auth stores it verbatim
+ * and the Worker redirects to it, so `/` resolves against the API's origin.
+ *
+ * Undefined on native, which has no origin to come back to and returns through
+ * the `autobourdain://` scheme instead.
+ */
+export const APP_URL =
+  Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : undefined;
+
+/**
  * Turnstile site key. Public by design - it is baked into the web bundle at
  * export time, which is why it lives in .env.development / .env.production
  * rather than in wrangler.jsonc or the dashboard. The matching secret is a

@@ -1,15 +1,17 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { Turnstile, type TurnstileHandle } from '@/components/turnstile';
 import { Body, Button, Field, Heading } from '@/components/ui';
-import { authClient } from '@/lib/auth-client';
+import { authClient, useSession } from '@/lib/auth-client';
+import { APP_URL } from '@/lib/config';
 
 type Mode = 'sign-in' | 'sign-up';
 
 export default function SignIn() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [mode, setMode] = useState<Mode>('sign-in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -49,9 +51,20 @@ export default function SignIn() {
 
   async function signInWithGithub() {
     setError(null);
-    const result = await authClient.signIn.social({ provider: 'github', callbackURL: '/' });
+    const result = await authClient.signIn.social({
+      provider: 'github',
+      // Absolute, not '/'. better-auth keeps this string as given and the
+      // Worker redirects to it once GitHub has come back, so a relative path
+      // resolves against whoever is responding - the API. Same origin in
+      // production, the wrong server in development.
+      callbackURL: APP_URL ? `${APP_URL}/` : '/',
+    });
     if (result.error) setError(result.error.message ?? 'GitHub sign-in failed.');
   }
+
+  // The other half of the shell's gate: nobody signed in has any business on
+  // this screen, whether they typed the URL or came back to a live session.
+  if (session?.user) return <Redirect href="/" />;
 
   return (
     <ScrollView

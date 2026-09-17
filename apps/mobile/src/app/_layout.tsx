@@ -53,25 +53,21 @@ export default function RootLayout() {
 function Navigation() {
   // Inside the provider, so the status bar follows the resolved mode rather
   // than the OS - the two part company as soon as Settings can set the mode.
-  const { resolvedMode, palette } = useTheme();
+  const { resolvedMode } = useTheme();
 
   return (
     <>
       <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
+      {/* No headers anywhere: the shell draws its own top bar, and the
+          sign-in screen already titles itself. That also keeps the whole tree
+          a NativeWind one - a navigation header would have to be handed
+          resolved hex instead. */}
       <Stack
         screenOptions={{
-          headerShadowVisible: false,
-          // The header is not a NativeWind tree, so it takes the resolved
-          // colours rather than classNames. The shell in block 2 replaces it.
-          headerStyle: { backgroundColor: palette.canvas },
-          headerTintColor: palette.text,
-          headerTitleStyle: { fontFamily: 'Newsreader_400Regular' },
+          headerShown: false,
           contentStyle: { backgroundColor: 'transparent' },
         }}
-      >
-        <Stack.Screen name="index" options={{ title: 'autobourdain' }} />
-        <Stack.Screen name="sign-in" options={{ title: 'Sign in' }} />
-      </Stack>
+      />
     </>
   );
 }

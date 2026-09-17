@@ -52,6 +52,7 @@ export const THEME_LABELS: Record<ThemeName, string> = {
  * UI and body - the pairing from the hi-fi passes in `design/`.
  */
 export const typeScale = {
+  wordmark: 'font-display text-[24px] leading-none',
   h1: 'font-display text-[28px] leading-[1.1]',
   h2: 'font-display text-[22px] leading-[1.15]',
   h3: 'font-display text-[17px] leading-[1.2]',
@@ -61,6 +62,8 @@ export const typeScale = {
   label: 'font-sans-medium text-[12.5px] leading-[1.3]',
   caption: 'font-sans text-[11.5px] leading-[1.3]',
   eyebrow: 'font-sans text-[11px] uppercase tracking-[0.06em] leading-[1.2]',
+  nav: 'font-sans text-[13px] leading-[1.3]',
+  navCurrent: 'font-sans-medium text-[13px] leading-[1.3]',
   button: 'font-sans-bold text-[13px] leading-none',
 } as const;
 

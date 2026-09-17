@@ -10,7 +10,7 @@ apps/mobile       Expo app        expo-router, NativeWind, TanStack Query
 apps/api          Worker API      Hono, better-auth, Drizzle -> D1
 packages/shared   shared types
 wrangler.jsonc    the Worker      static assets + API + D1 binding
-design            wireframes      exported from Claude Design, guidance only
+design            frames          wireframes + the 2e hi-fi pass, from Claude Design
 ```
 
 Deployed at <https://autobourdain.blaczko.com>.
@@ -26,16 +26,10 @@ Ordered. Each block is expected to land before the next one starts, and the
 blocks after the Today page are deliberately coarse - they get broken down when
 they come up.
 
-**1. App shell and navigation**
+**1. Settings scaffolding and Appearance**
 
-- [ ] Router layout with destinations: Today, Week plan, Kitchen, Recipes, Settings
-- [ ] Sidebar
-- [ ] Placeholder screen for every destination, so the nav walks end to end
-- [ ] Signed-out handling: what an unauthenticated visitor sees instead of the shell
-
-**2. Settings scaffolding and Appearance**
-
-- [ ] Settings shell guided by `d5b` - category rail (Preferences / Setup / App)
+- [ ] Settings shell - content and flow from `d5b`, treatment from `2e`:
+      category rail (Preferences / Setup / App)
 - [ ] `userPreferences` in `apps/api/src/db/schema.ts` + migration - theme and
       mode stored on the user
 - [ ] `GET` / `PATCH /api/preferences`, with a TanStack Query hook that updates
@@ -45,7 +39,7 @@ they come up.
 - [ ] Apply the stored preference before first paint, so there is no flash of
       the wrong palette on load
 
-**3. Today page - first pass**
+**2. Today page - first pass**
 
 A random suggestion with refinements, and nothing else: no previous
 recommendations, no saved recipes, no kitchen stock.
@@ -58,13 +52,14 @@ Leave out, rather than fake, everything that needs data we do not have:
 - [ ] `POST /api/suggest`: ask text, meal type, time limit and portions in; a
       recipe out (title, time, portions, ingredients, method), validated against
       a schema in the Worker before it reaches the client
-- [ ] Today screen guided by `D1d` - ask field, meal-type chips, time and portion
+- [ ] Today screen - content and flow from `D1d`, treatment from `2e`, which
+      drew this exact screen: ask field, meal-type chips, time and portion
       controls, Suggest
 - [ ] Suggestion card plus the "what it takes" detail beside it
 - [ ] Refinements, details to be decided
 - [ ] Pending and failure states for a call that takes seconds and can fail
 
-**4. Followup steps**
+**3. Followup steps**
 
 - [ ] Settings - recipe preferences
 - [ ] Kitchen item tracking
@@ -84,13 +79,26 @@ Leave out, rather than fake, everything that needs data we do not have:
 - [ ] Drag a saved recipe onto a day on the week board
 - [ ] Narrow-screen nav shape is undecided - sidebar vs bottom tabs. Decide
       before the app matters on a phone
+- [ ] The shell's contents diverge from `2e` on purpose: the account and a
+      sign-out where `2e` puts the household, no "kitchen covers" box in the
+      rail, shorter labels, and Shopping list folded into Kitchen rather than
+      being a sixth destination. The treatment follows `2e`; only what is in it
+      differs. Revisit once there is data behind any of it
+- [ ] `Shell` in `app/(shell)/_layout.tsx` opts out of React Compiler with
+      `'use no memo'` - without it the memoised subtree swallows every
+      navigation. Drop the directive when expo-router's headless tabs survive
+      the compiler
+- [ ] On Windows the dev server corrupts `.expo/types/router.d.ts` for any file
+      created outside `src/app` while it runs - expo-router's watch handler
+      tests a backslash path against `'../'`. Restart it before trusting
+      `npm run typecheck`
 - [ ] EAS build configuration for iOS/Android
 - [ ] Set `EXPO_PUBLIC_API_URL` to the deployed origin for native builds - they
       have no `window.location` to fall back to
 
 ## Design
 
-`design/` holds the UI wireframes, exported from the **Meal Planning App
+`design/` holds the UI frames, exported from the **Meal Planning App
 Wireframes** project on <https://claude.ai/design>. Open
 `design/Meal Planner Wireframes.dc.html` straight from disk to view them - it
 loads its `support.js` runtime by relative path and needs no server.
@@ -98,12 +106,29 @@ loads its `support.js` runtime by relative path and needs no server.
 Nothing imports it, nothing builds it, and it is excluded from ESLint and
 Prettier. Edits belong on claude.ai/design, then a re-export.
 
-**They are general guidance, not immutable goals.** A wireframe shows the
-intended direction for a screen - layout, hierarchy, tone, roughly what belongs
-on it - and is the starting point rather than a pixel target. Deviate where the
-platform, the data we actually have, or a later decision calls for it. The
-wireframes are not kept in sync with the code: where the two disagree, the code
-is what ships.
+There are two kinds of frame in there and they answer different questions:
+
+- **`2e` is the hi-fi pass, and it is what the app looks like.** It is the only
+  frame drawn at real fidelity, and every visual decision comes from it - fills,
+  rules, spacing, type sizes and weights, and how the current thing is marked.
+  Its palettes are spelled out in `2e-1`, `2e-2`, `2e-1b` and `2e-2b`, which is
+  where `src/theme/palettes.ts` comes from. The vocabulary is editorial and
+  quiet: chrome is unfilled canvas separated by hairlines, panels are kept for
+  content, and state is marked with an accent rule rather than a filled pill.
+- **`D1d`, `D2c`, `D3a`, `D4a-*` and `d5b` are wireframes, and they carry
+  content and flow only.** They say what belongs on a screen and roughly in what
+  order. Their boxes, fills, blocked-in nav and proportions are placeholder
+  drawing rather than design - build a screen to look like one of them and it
+  will look nothing like this app.
+
+So a screen takes its content from the wireframe and its treatment from `2e`.
+Where a wireframe covers something `2e` never drew, extend `2e`'s vocabulary
+instead of falling back on the wireframe's look.
+
+**Both are general guidance, not immutable goals**, and neither is kept in sync
+with the code. Deviate where the platform, the data we actually have, or a later
+decision calls for it. Where a frame and the code disagree, the code is what
+ships.
 
 ## Prerequisites
 
@@ -146,7 +171,12 @@ blocks.
 GitHub sign-in is optional locally — leave the GitHub values empty and the
 provider is simply not registered. To enable it, create an OAuth app at
 <https://github.com/settings/developers> with callback URL
-`http://localhost:8787/api/auth/callback/github`. Testing it on a phone needs a
+`http://localhost:8787/api/auth/callback/github`. That is the **OAuth**
+callback, and the Worker's port is right: GitHub returns to the API. The hop
+after it — the API sending you back to the app — is a separate address, and has
+to be absolute, or it lands on the Worker instead of the Expo dev server. The
+app passes `APP_URL` for it (`apps/mobile/src/lib/config.ts`); in production the
+two origins are the same and the distinction disappears. Testing it on a phone needs a
 second callback on this machine's LAN address
 (`http://192.168.x.x:8787/api/auth/callback/github`): the device reaches the
 Worker there, so that is the origin better-auth hands GitHub.
