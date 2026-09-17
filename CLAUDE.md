@@ -80,9 +80,21 @@ Two deliberate exceptions:
 | `apps/api`        | Worker: Hono routes, better-auth, Drizzle schema, migrations |
 | `packages/shared` | Types shared by both sides                                   |
 | `wrangler.jsonc`  | The single Worker: static assets + API + D1 binding          |
-| `design`          | UI wireframes exported from Claude Design - reference only   |
+| `design`          | UI wireframes exported from Claude Design - guidance only    |
 
 npm workspaces. Install from the repo root, never from inside a workspace.
+
+### The design files
+
+`design/` is **general guidance, not a specification.** The wireframes show the
+intended direction - layout, hierarchy, tone, roughly what belongs on a screen.
+They are not immutable goals and they are not kept in sync with the code.
+
+- Treat a wireframe as the starting point for a screen, not as a pixel target.
+- Deviate where the platform, the data we actually have, or a later decision
+  calls for it. Say what you deviated from and why.
+- Where a wireframe and the code disagree, the code wins. The wireframes are
+  never re-exported to match it.
 
 ## Commands
 
@@ -103,6 +115,15 @@ npm run db:migrate   # apply migrations to local D1
 - Routes live in `apps/mobile/src/app`; `@/*` maps to `apps/mobile/src/*`.
 - Styling is NativeWind classNames, not StyleSheet. Keep Tailwind on v3 —
   NativeWind 4 does not support Tailwind 4.
+- Colours come from the semantic tokens in `apps/mobile/src/theme/tokens.ts`,
+  used as classNames (`bg-canvas`, `text-secondary`, `border-hairline`). No
+  `neutral-*`, no hex in a screen, and no `dark:` for colour - the
+  `ThemeProvider` swaps the whole palette. The few APIs that take a colour prop
+  instead of a className (ActivityIndicator, navigation headers) read `palette`
+  from `useTheme()`.
+- Type is `font-display` (Newsreader) and `font-sans` (DM Sans), one Tailwind
+  family per weight because native has no weight axis. Sizes come from
+  `typeScale`, through the primitives in `apps/mobile/src/components/ui`.
 - API tests live in `apps/api/test` and run inside the Workers runtime against a
   real local D1. Storage is isolated per test _file_, not per test, so anything
   writing a row uses a unique email - see `testUser()` in `test/helpers.ts`.
@@ -114,8 +135,8 @@ npm run db:migrate   # apply migrations to local D1
 - The auth instance is built per request (`createAuth(env, origin)`) because D1
   bindings only exist per request.
 - After changing bindings or vars in `wrangler.jsonc`, run `npm run cf-typegen`.
-- Tailwind is on `darkMode: 'class'` and `_layout.tsx` pushes the OS scheme in
-  via NativeWind's `colorScheme.set`. Do not switch back to `'media'`:
+- Tailwind is on `darkMode: 'class'` and `src/theme/theme-provider.tsx` pushes
+  the resolved mode in via NativeWind's `colorScheme.set`. Do not switch back to `'media'`:
   react-native-css-interop's stylesheet observer calls `colorScheme.set()`
   unconditionally, and that setter throws on `'media'`, which Expo shows as an
   uncaught error overlay on every dev page load.

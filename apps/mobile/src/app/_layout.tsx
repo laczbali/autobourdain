@@ -1,37 +1,77 @@
 import '../global.css';
 
+// One weight per import, rather than the package root: the root re-exports
+// every weight it ships, and Metro bundles each one it sees - 32 font files
+// into the web export for the six that are actually used.
+import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
+import { DMSans_500Medium } from '@expo-google-fonts/dm-sans/500Medium';
+import { DMSans_700Bold } from '@expo-google-fonts/dm-sans/700Bold';
+import { Newsreader_400Regular } from '@expo-google-fonts/newsreader/400Regular';
+import { Newsreader_400Regular_Italic } from '@expo-google-fonts/newsreader/400Regular_Italic';
+import { Newsreader_600SemiBold } from '@expo-google-fonts/newsreader/600SemiBold';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { colorScheme } from 'nativewind';
 import { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+
+import { ThemeProvider, useTheme } from '@/theme/theme-provider';
+
+// Held until the fonts are in, so the first frame is not system-font text that
+// reflows a moment later.
+void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
-  const systemScheme = useColorScheme();
+  const [fontsLoaded, fontError] = useFonts({
+    Newsreader_400Regular,
+    Newsreader_400Regular_Italic,
+    Newsreader_600SemiBold,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+  });
 
-  // Tailwind runs in darkMode: 'class', so the OS preference has to be pushed
-  // into NativeWind rather than picked up by a media query. On web this also
-  // puts the `dark` class on <html>; on native it drives NativeWind directly.
   useEffect(() => {
-    // react-native can also report 'unspecified'; 'system' lets NativeWind fall
-    // back to Appearance itself.
-    colorScheme.set(systemScheme === 'dark' || systemScheme === 'light' ? systemScheme : 'system');
-  }, [systemScheme]);
+    // A font that fails to load is not worth a blank screen: the families in
+    // tailwind.config.js fall back to Georgia and the system sans.
+    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="auto" />
+      <ThemeProvider>
+        <Navigation />
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+function Navigation() {
+  // Inside the provider, so the status bar follows the resolved mode rather
+  // than the OS - the two part company as soon as Settings can set the mode.
+  const { resolvedMode, palette } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShadowVisible: false,
+          // The header is not a NativeWind tree, so it takes the resolved
+          // colours rather than classNames. The shell in block 2 replaces it.
+          headerStyle: { backgroundColor: palette.canvas },
+          headerTintColor: palette.text,
+          headerTitleStyle: { fontFamily: 'Newsreader_400Regular' },
           contentStyle: { backgroundColor: 'transparent' },
         }}
       >
         <Stack.Screen name="index" options={{ title: 'autobourdain' }} />
         <Stack.Screen name="sign-in" options={{ title: 'Sign in' }} />
       </Stack>
-    </QueryClientProvider>
+    </>
   );
 }

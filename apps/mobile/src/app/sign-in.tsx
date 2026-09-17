@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { Turnstile, type TurnstileHandle } from '@/components/turnstile';
+import { Body, Button, Field, Heading } from '@/components/ui';
 import { authClient } from '@/lib/auth-client';
 
 type Mode = 'sign-in' | 'sign-up';
@@ -55,73 +56,50 @@ export default function SignIn() {
   return (
     <ScrollView
       contentContainerClassName="min-h-full items-center justify-center p-6"
-      className="flex-1 bg-white dark:bg-neutral-950"
+      className="flex-1 bg-canvas"
     >
       <View className="w-full max-w-sm gap-4">
-        <Text className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-          {mode === 'sign-in' ? 'Sign in' : 'Create an account'}
-        </Text>
+        <Heading level={1}>{mode === 'sign-in' ? 'Sign in' : 'Create an account'}</Heading>
 
         {mode === 'sign-up' && (
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Name"
-            autoComplete="name"
-            className="rounded-lg border border-neutral-300 px-4 py-3 text-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
-          />
+          <Field value={name} onChangeText={setName} placeholder="Name" autoComplete="name" />
         )}
 
-        <TextInput
+        <Field
           value={email}
           onChangeText={setEmail}
           placeholder="Email"
           inputMode="email"
           autoCapitalize="none"
           autoComplete="email"
-          className="rounded-lg border border-neutral-300 px-4 py-3 text-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
         />
 
-        <TextInput
+        <Field
           value={password}
           onChangeText={setPassword}
           placeholder="Password"
           secureTextEntry
           autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-          className="rounded-lg border border-neutral-300 px-4 py-3 text-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
         />
 
         <Turnstile ref={turnstile} onToken={setCaptchaToken} />
 
-        {error && <Text className="text-red-600 dark:text-red-400">{error}</Text>}
+        {/* One line for the lot: a failure here can belong to any of the three
+            fields or to the captcha, so it does not hang off one of them. */}
+        {error && <Body tone="accent">{error}</Body>}
 
-        <Pressable
+        <Button
+          title={mode === 'sign-in' ? 'Sign in' : 'Sign up'}
           onPress={submit}
-          disabled={pending}
-          className="items-center rounded-lg bg-neutral-900 px-4 py-3 active:opacity-70 disabled:opacity-50 dark:bg-neutral-100"
-        >
-          {pending ? (
-            <ActivityIndicator />
-          ) : (
-            <Text className="font-medium text-white dark:text-neutral-900">
-              {mode === 'sign-in' ? 'Sign in' : 'Sign up'}
-            </Text>
-          )}
-        </Pressable>
+          pending={pending}
+        />
 
-        <Pressable
-          onPress={signInWithGithub}
-          className="items-center rounded-lg border border-neutral-300 px-4 py-3 active:opacity-70 dark:border-neutral-700"
-        >
-          <Text className="font-medium text-neutral-900 dark:text-neutral-100">
-            Continue with GitHub
-          </Text>
-        </Pressable>
+        <Button title="Continue with GitHub" variant="secondary" onPress={signInWithGithub} />
 
         <Pressable onPress={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}>
-          <Text className="text-center text-neutral-500 dark:text-neutral-400">
+          <Body tone="secondary" className="text-center">
             {mode === 'sign-in' ? 'No account? Create one' : 'Already have an account? Sign in'}
-          </Text>
+          </Body>
         </Pressable>
       </View>
     </ScrollView>

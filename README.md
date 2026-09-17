@@ -10,7 +10,7 @@ apps/mobile       Expo app        expo-router, NativeWind, TanStack Query
 apps/api          Worker API      Hono, better-auth, Drizzle -> D1
 packages/shared   shared types
 wrangler.jsonc    the Worker      static assets + API + D1 binding
-design            wireframes      exported from Claude Design, reference only
+design            wireframes      exported from Claude Design, guidance only
 ```
 
 Deployed at <https://autobourdain.blaczko.com>.
@@ -26,33 +26,16 @@ Ordered. Each block is expected to land before the next one starts, and the
 blocks after the Today page are deliberately coarse - they get broken down when
 they come up.
 
-**1. Styling foundation**
-
-- [ ] Semantic colour tokens - canvas, raised, inset, hairline, accent, text,
-      secondary, in-stock, to-buy - as CSS variables mapped into
-      `tailwind.config.js`, so a theme is a set of variable values rather than a
-      set of classNames
-- [ ] Cocoa plum and Warm ink palettes, light and dark each, from the hi-fi
-      passes in `design/` (`2e-1`, `2e-1b`, `2e-2`, `2e-2b`)
-- [ ] Mode and theme independent: mode picks light or dark, theme picks the
-      palette, and switching one never changes the other
-- [ ] Type: Newsreader for headings and numbers, DM Sans for UI and body, loaded
-      through `expo-font` with the same pairing on web
-- [ ] Primitives on top of the tokens - heading/text scale, Button, Chip,
-      Card/panel, form field
-- [ ] Move `index.tsx` and `sign-in.tsx` off the hardcoded `neutral-*` classes
-      onto the tokens
-
-**2. App shell and navigation**
+**1. App shell and navigation**
 
 - [ ] Router layout with destinations: Today, Week plan, Kitchen, Recipes, Settings
 - [ ] Sidebar
 - [ ] Placeholder screen for every destination, so the nav walks end to end
 - [ ] Signed-out handling: what an unauthenticated visitor sees instead of the shell
 
-**3. Settings scaffolding and Appearance**
+**2. Settings scaffolding and Appearance**
 
-- [ ] Settings shell per `d5b` - category rail (Preferences / Setup / App)
+- [ ] Settings shell guided by `d5b` - category rail (Preferences / Setup / App)
 - [ ] `userPreferences` in `apps/api/src/db/schema.ts` + migration - theme and
       mode stored on the user
 - [ ] `GET` / `PATCH /api/preferences`, with a TanStack Query hook that updates
@@ -62,7 +45,7 @@ they come up.
 - [ ] Apply the stored preference before first paint, so there is no flash of
       the wrong palette on load
 
-**4. Today page - first pass**
+**3. Today page - first pass**
 
 A random suggestion with refinements, and nothing else: no previous
 recommendations, no saved recipes, no kitchen stock.
@@ -75,13 +58,13 @@ Leave out, rather than fake, everything that needs data we do not have:
 - [ ] `POST /api/suggest`: ask text, meal type, time limit and portions in; a
       recipe out (title, time, portions, ingredients, method), validated against
       a schema in the Worker before it reaches the client
-- [ ] Today screen per `D1d` - ask field, meal-type chips, time and portion
+- [ ] Today screen guided by `D1d` - ask field, meal-type chips, time and portion
       controls, Suggest
 - [ ] Suggestion card plus the "what it takes" detail beside it
 - [ ] Refinements, details to be decided
 - [ ] Pending and failure states for a call that takes seconds and can fail
 
-**5. Followup steps**
+**4. Followup steps**
 
 - [ ] Settings - recipe preferences
 - [ ] Kitchen item tracking
@@ -90,6 +73,11 @@ Leave out, rather than fake, everything that needs data we do not have:
 
 ### Later
 
+- [ ] The dark palettes' `muted`, `control` and `rule` are derived, not
+      designed - no dark screen was ever drawn. Confirm them against a dark
+      hi-fi pass, or accept them
+- [ ] No danger colour exists in the palettes - errors currently borrow the
+      accent. Decide one before the first destructive action ships
 - [ ] Recipe photos - every wireframe has a dish image and we have no store for
       one yet
 - [ ] Receipt scanning into the kitchen list
@@ -107,8 +95,15 @@ Wireframes** project on <https://claude.ai/design>. Open
 `design/Meal Planner Wireframes.dc.html` straight from disk to view them - it
 loads its `support.js` runtime by relative path and needs no server.
 
-Reference only: nothing imports it, nothing builds it, and it is excluded from
-ESLint and Prettier. Edits belong on claude.ai/design, then a re-export.
+Nothing imports it, nothing builds it, and it is excluded from ESLint and
+Prettier. Edits belong on claude.ai/design, then a re-export.
+
+**They are general guidance, not immutable goals.** A wireframe shows the
+intended direction for a screen - layout, hierarchy, tone, roughly what belongs
+on it - and is the starting point rather than a pixel target. Deviate where the
+platform, the data we actually have, or a later decision calls for it. The
+wireframes are not kept in sync with the code: where the two disagree, the code
+is what ships.
 
 ## Prerequisites
 
