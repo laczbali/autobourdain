@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:nowrap;gap:28px;align-items:flex-start;width:max-content}
+.dv-turn{width:max-content;min-width:100%;box-sizing:border-box}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.pfhd{font:700 15px Kalam,cursive;color:#1a1a1a;margin:30px 0 4px;letter-spacing:.3px;border-bottom:1.5px solid #1a1a1a;padding-bottom:5px}.pghd{font:400 12px Kalam,cursive;color:#6b6b6b;margin:18px 0 9px}.dv-opts{margin-bottom:6px}.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+a{color:#2a6fc4}a:hover{color:#18457f}
+.wrap{display:flex;flex-wrap:wrap;gap:22px;padding:22px;background:#faf9f6}
+.f{background:#fff;border:1.5px solid #1a1a1a;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.pop{position:absolute;z-index:5;width:262px;background:#fff;border:1.5px solid #1a1a1a;border-radius:8px;box-shadow:3px 3px 0 rgba(26,26,26,.14);padding:9px;display:flex;flex-direction:column;gap:7px}
+.sel{outline:2.5px solid #1a1a1a;outline-offset:1px;background:#fffbe8!important}
+.fl{font:400 11.5px/1.4 Kalam,cursive;color:#1a1a1a;margin:0 0 5px;letter-spacing:.2px}
+.fw{display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1.5px solid #1a1a1a;background:#f3f2ee;font:700 12px Kalam,cursive}
+.side{width:132px;border-right:1.5px solid #1a1a1a;background:#f6f5f1;padding:12px 10px;display:flex;flex-direction:column;gap:7px;flex:none}
+.nav{font:400 12px/1.5 Kalam,cursive;color:#3a3a3a;padding:4px 6px;border-radius:5px}
+.nav.on{background:#1a1a1a;color:#fff}
+.body{display:flex;flex:1;min-height:0}
+.col{display:flex;flex-direction:column;gap:10px;padding:12px;min-width:0;flex:1}
+.h{font:700 13px Kalam,cursive;color:#1a1a1a;margin:0}
+.sub{font:400 11px Kalam,cursive;color:#6b6b6b;margin:0}
+.box{border:1.2px dashed #9a9a94;border-radius:7px;padding:9px;display:flex;flex-direction:column;gap:6px;background:#fff}
+.box.s{border-style:solid;border-color:#1a1a1a;border-width:1.2px}
+.ln{height:7px;background:#dedcd6;border-radius:4px}
+.sq{background:repeating-linear-gradient(45deg,#e6e4de,#e6e4de 4px,#f3f2ee 4px,#f3f2ee 8px);border:1.2px solid #c9c7c0;border-radius:6px;display:flex;align-items:center;justify-content:center;font:400 9.5px ui-monospace,Menlo,monospace;color:#7a7a74;text-align:center}
+.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;gap:7px;align-items:center;justify-content:space-between}
+.btn{border:1.2px solid #1a1a1a;border-radius:20px;padding:4px 10px;font:400 11px Kalam,cursive;background:#fff;white-space:nowrap}
+.btn.p{background:#1a1a1a;color:#fff}
+.btn.b{padding:7px 12px;font-size:12.5px;font-weight:700;justify-content:center;display:flex;flex:1}
+.chip{border:1.2px solid #b6b4ad;border-radius:20px;padding:3px 8px;font:400 10.5px Kalam,cursive;color:#3a3a3a;background:#f6f5f1;white-space:nowrap}
+.t{font:400 11.5px/1.45 Kalam,cursive;color:#2a2a2a}
+.t.sm{font-size:10.5px;color:#6b6b6b}
+.t.bd{font-weight:700}
+.tabs{display:flex;border-top:1.5px solid #1a1a1a;background:#f3f2ee;margin-top:auto}
+.tabs>div{flex:1;text-align:center;padding:8px 2px;font:400 10px Kalam,cursive;color:#5a5a5a;border-right:1px solid #d8d6d0}
+.tabs>div.on{background:#1a1a1a;color:#fff}
+.note{font:400 11px/1.4 Kalam,cursive;color:#8a6a12;background:#fdf6e0;border:1.2px solid #e6d79b;border-radius:6px;padding:6px 8px}
+.hr{height:1px;background:#e2e0da}
+.g7{display:grid;grid-template-columns:78px repeat(7,1fr);gap:5px}
+.cell{border:1.2px dashed #b6b4ad;border-radius:5px;min-height:34px;padding:4px;font:400 9.5px/1.25 Kalam,cursive;color:#4a4a4a}
+.cell.f2{border-style:solid;border-color:#8a8a84;background:#f6f5f1}
+.stat{border:1.2px solid #1a1a1a;border-radius:6px;padding:6px 8px;font:400 10.5px Kalam,cursive;flex:1}
+</style></helmet>
+<section class="dv-turn" id="t0">
+<div class="dv-thd"><a class="dv-tid" href="#t0">0</a><span class="dv-tname">Dark-theme hi-fi passes on <a class="dv-oid" href="#D1d">D1d</a> — same content and flow (ask → suggestions → what it takes → confirm), with three warm dark palette options. Scroll sideways.</span></div>
+<p class="pfhd">Desktop · Home / today · dark</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2e"><div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Cocoa plum + terracotta — light, editorial serif, recipe-magazine</div>
+<div style="width:1120px;min-height:740px;display:flex;flex-direction:column;background:#faf4f0;overflow:hidden;font-family:'DM Sans',system-ui,sans-serif;color:#2a1d20;border-radius:14px">
+<div style="display:flex;align-items:center;gap:16px;padding:18px 26px;border-bottom:1px solid #ded0c8">
+<span style="font:400 24px/1 Newsreader,serif;letter-spacing:.01em">autobourdain</span>
+<span style="font:italic 400 13px Newsreader,serif;color:#6f5b53">today</span>
+<span style="margin-left:auto;font-size:12px;color:#6f5b53">just me</span>
+</div>
+<div style="display:flex;flex:1;min-height:0">
+<div style="width:186px;flex:none;padding:20px 16px;border-right:1px solid #ded0c8;display:flex;flex-direction:column;gap:4px">
+<div style="padding:7px 0;border-bottom:1.5px solid #bd5227;font:600 13px 'DM Sans',sans-serif">Today</div>
+<div style="padding:7px 0;font-size:13px;color:#5f4d46">Week plan</div>
+<div style="padding:7px 0;font-size:13px;color:#5f4d46">My kitchen</div>
+<div style="padding:7px 0;font-size:13px;color:#5f4d46">Shopping list</div>
+<div style="padding:7px 0;font-size:13px;color:#5f4d46">My recipes</div>
+<div style="padding:7px 0;font-size:13px;color:#5f4d46">Settings</div>
+<div style="margin-top:auto;padding-top:14px;border-top:1px solid #ded0c8">
+<div style="font-size:11px;color:#6f5b53;letter-spacing:.06em;text-transform:uppercase">Kitchen covers</div>
+<div style="font:400 30px/1.1 Newsreader,serif;color:#bd5227;margin:5px 0 2px">4 of 6</div>
+<div style="font-size:11.5px;color:#6f5b53">planned meals</div>
+</div>
+</div>
+<div style="width:300px;flex:none;padding:20px;border-right:1px solid #ded0c8;display:flex;flex-direction:column;gap:16px;background:#f3e9e3">
+<div style="display:flex;gap:16px;font-size:12px;border-bottom:1px solid #ded0c8;padding-bottom:8px">
+<span style="color:#2a1d20;font-weight:700">Mix</span><span style="color:#6f5b53">My recipes</span><span style="color:#6f5b53">New ideas</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:13px">
+<div style="font:400 26px/1.15 Newsreader,serif">What are we<br><span style="font-style:italic">eating tonight?</span></div>
+<div style="padding:13px 14px;background:#ece0d9;border-left:2px solid #bd5227;font-size:13px;line-height:1.5;color:#3a2a2c">dinner tonight, 30 min, use the spinach</div>
+<div style="display:flex;gap:7px"><span style="padding:6px 12px;border:1px solid #cbb9af;border-radius:9px;font-size:11.5px;color:#5f4d46">Quick breakfast</span><span style="padding:6px 12px;background:#bd5227;color:#ece0d9;border-radius:9px;font:700 11.5px 'DM Sans',sans-serif">Proper dinner</span></div>
+<div style="display:flex;gap:14px;font-size:11.5px;color:#6f5b53"><span>≤ 30 min</span><span>from kitchen</span><span>no repeats</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #ded0c8;border-bottom:1px solid #ded0c8"><span style="font-size:12.5px;color:#6f5b53">Portions</span><span style="display:flex;align-items:center;gap:12px"><span style="font-size:14px;color:#5f4d46">−</span><span style="font:400 20px Newsreader,serif">2</span><span style="font-size:14px;color:#5f4d46">+</span></span></div>
+<div style="padding:12px;background:#bd5227;color:#ece0d9;text-align:center;border-radius:9px;font:700 13.5px 'DM Sans',sans-serif">Suggest a meal</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:400 17px Newsreader,serif">Or plan ahead</div>
+<div style="display:flex;gap:7px"><span style="padding:7px 12px;border:1px solid #cbb9af;border-radius:9px;font-size:11.5px;color:#5f4d46">Plan the week</span><span style="padding:7px 12px;border:1px solid #cbb9af;border-radius:9px;font-size:11.5px;color:#5f4d46">3 dinners</span></div>
+</div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;color:#6f5b53;letter-spacing:.06em;text-transform:uppercase">Recently cooked</div>
+<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#3a2a2c">Pasta with greens<span style="color:#80695f">Tue</span></div>
+<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#3a2a2c">Frittata<span style="color:#80695f">Mon</span></div>
+<div style="font-size:11px;color:#80695f">counted against repeats</div>
+</div>
+</div>
+<div style="flex:1;min-width:0;padding:20px 24px;display:flex;flex-direction:column;gap:18px">
+<div style="display:grid;grid-template-columns:1.15fr .9fr .8fr;gap:16px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="height:128px;background:repeating-linear-gradient(45deg,#e7dad3,#e7dad3 6px,#ece0d9 6px,#ece0d9 12px);display:flex;align-items:center;justify-content:center;font:400 10px 'JetBrains Mono',monospace;color:#80695f;border-radius:9px;border-bottom:2px solid #bd5227">dish photo</div>
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:400 22px/1.15 Newsreader,serif">Spinach frittata</span><span style="font-size:12px;color:#6f5b53">20 min</span></div>
+<div style="display:flex;gap:12px;font-size:11.5px;color:#6f5b53"><span>from my recipes</span><span>★ 4.6</span><span style="color:#3f6e3c">everything at home</span></div>
+<div style="display:flex;gap:8px;margin-top:auto"><span style="flex:1;text-align:center;padding:10px;background:#bd5227;color:#ece0d9;border-radius:9px;font:700 12.5px 'DM Sans',sans-serif">Chosen ✓</span><span style="padding:10px 14px;border:1px solid #cbb9af;border-radius:9px;font-size:12.5px;color:#5f4d46">Recipe</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;padding-left:16px;border-left:1px solid #ded0c8">
+<div style="height:96px;background:repeating-linear-gradient(45deg,#ece0d9,#ece0d9 6px,#e8dbd4 6px,#e8dbd4 12px);display:flex;align-items:center;justify-content:center;font:400 10px 'JetBrains Mono',monospace;color:#80695f;border-radius:9px">dish photo</div>
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:400 19px/1.15 Newsreader,serif">Miso salmon bowl</span><span style="font-size:12px;color:#6f5b53">35 min</span></div>
+<div style="display:flex;gap:12px;font-size:11.5px;color:#6f5b53"><span>new idea</span><span style="color:#8a5c1f">buy 3 items</span></div>
+<div style="display:flex;gap:8px;margin-top:auto"><span style="flex:1;text-align:center;padding:9px;border:1px solid #b9a49a;border-radius:9px;font:700 12.5px 'DM Sans',sans-serif;color:#2a1d20">Choose</span><span style="padding:9px 12px;font-size:12.5px;color:#6f5b53">Save</span></div>
+</div>
+<div style="padding-left:16px;border-left:1px solid #ded0c8;display:flex;flex-direction:column;gap:11px">
+<div style="font:400 17px Newsreader,serif">More from<br>my recipes</div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid #e7dad3;font-size:12.5px;color:#3a2a2c">Sausage traybake<span style="font-size:11px;color:#80695f">40m</span></div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid #e7dad3;font-size:12.5px;color:#3a2a2c">Lemon chicken<span style="font-size:11px;color:#80695f">45m</span></div>
+<div style="font-size:11px;color:#80695f">7 saved recipes fit this slot</div>
+<div style="margin-top:auto;font-size:12px;color:#bd5227;text-decoration:underline">Browse all 46</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid #ded0c8;border-bottom:1px solid #ded0c8">
+<span style="font:italic 400 15px Newsreader,serif;color:#6f5b53">Refine</span>
+<span style="font-size:12px;color:#3a2a2c">lighter</span><span style="color:#b9a49a">·</span>
+<span style="font-size:12px;color:#3a2a2c">faster</span><span style="color:#b9a49a">·</span>
+<span style="font-size:12px;color:#3a2a2c">more protein</span><span style="color:#b9a49a">·</span>
+<span style="font-size:12px;color:#3a2a2c">use the freezer</span><span style="color:#b9a49a">·</span>
+<span style="font-size:12px;color:#6f5b53">type your own…</span>
+<span style="margin-left:auto;font-size:12px;color:#bd5227">↺ Try again</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:12px"><span style="font:400 24px/1.1 Newsreader,serif">Spinach frittata <span style="font-style:italic;color:#6f5b53">what it takes</span></span><span style="font-size:11.5px;color:#6f5b53">2 portions</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;color:#6f5b53;letter-spacing:.06em;text-transform:uppercase">Used up from the kitchen</span><span style="font-size:11px;color:#80695f">deducted after cooking</span></div>
+<div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #e7dad3;font-size:13px;color:#3a2a2c">Eggs<span style="color:#6f5b53">6 → 3 pcs</span></div>
+<div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #e7dad3;font-size:13px;color:#3a2a2c">Spinach<span style="color:#bd5227">200 → 100 g · expiring Thu</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#3a2a2c">Butter<span style="color:#6f5b53">250 → 235 g</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;color:#6f5b53;letter-spacing:.06em;text-transform:uppercase">Needs buying</span><span style="font-size:11px;color:#80695f">1 item</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #e7dad3;font-size:13px;color:#3a2a2c">Parmesan 100 g<span style="padding:5px 11px;background:#bd5227;color:#ece0d9;border-radius:9px;font:700 11.5px 'DM Sans',sans-serif">Add to list</span></div>
+<div style="font-size:11.5px;color:#80695f">Everything else is at home</div>
+<div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#6f5b53">skip it?</span><span style="padding:6px 11px;border:1px solid #cbb9af;border-radius:9px;font-size:11.5px;color:#5f4d46">Swap ingredient</span></div>
+</div>
+</div>
+<div style="margin-top:auto;display:flex;align-items:center;gap:12px;padding-top:16px;border-top:1px solid #ded0c8">
+<span style="font-size:12px;color:#6f5b53">Lands in</span>
+<span style="font:400 15px Newsreader,serif;color:#bd5227">Tue · dinner</span>
+<span style="font-size:12px;color:#6f5b53;text-decoration:underline">Change slot</span>
+<span style="margin-left:auto;display:flex;gap:10px"><span style="padding:11px 20px;border:1px solid #cbb9af;border-radius:9px;font-size:13px;color:#5f4d46">Cancel</span><span style="padding:11px 24px;background:#bd5227;color:#ece0d9;border-radius:9px;font:700 13px 'DM Sans',sans-serif">Confirm meal</span></span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2e-1"><div class="dv-olabel"><a class="dv-oid" href="#2e-1">2e-1</a>Cocoa plum + terracotta</div>
+<div style="width:260px;padding:22px;background:#1a1316;border-radius:14px;color:#f5e9e4;font-family:'DM Sans',system-ui,sans-serif;display:flex;flex-direction:column;gap:18px">
+<div style="font:400 19px Newsreader,serif">Palette</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#1a1316;border:1px solid #46373c"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Cocoa plum</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#1a1316 · canvas</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#1e1519"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Raised plum</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#1e1519 · panels</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#241a1e"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Inset plum</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#241a1e · fields</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#362a2f"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Hairline</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#362a2f · borders</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#e07a52"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Terracotta</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#e07a52 · accent</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f5e9e4"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Warm bone</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#f5e9e4 · text</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#b09a93"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Muted rose</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#b09a93 · secondary</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#9ec79b"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Sage</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#9ec79b · in stock</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#dba97f"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Wheat</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#b09a93">#dba97f · to buy</span></span></div>
+</div>
+<div style="padding-top:14px;border-top:1px solid #362a2f;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 17px Newsreader,serif">Newsreader</div>
+<div style="font-size:11.5px;color:#b09a93">headings, numbers</div>
+<div style="font:600 14px 'DM Sans',sans-serif;margin-top:6px">DM Sans</div>
+<div style="font-size:11.5px;color:#b09a93">UI, body, buttons</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2e-2"><div class="dv-olabel"><a class="dv-oid" href="#2e-2">2e-2</a>Warm ink + chili red</div>
+<div style="width:260px;padding:22px;background:#181311;border-radius:14px;color:#f3e8e0;font-family:'DM Sans',system-ui,sans-serif;display:flex;flex-direction:column;gap:18px">
+<div style="font:400 19px Newsreader,serif">Palette</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#181311;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Canvas</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#181311 · canvas</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#1e1815;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Raised</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#1e1815 · panels</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#261e1a;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Inset</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#261e1a · fields</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#352a25;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Hairline</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#352a25 · borders</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#e2543f;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Chili red</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#e2543f · accent</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f3e8e0;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Text</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#f3e8e0 · text</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#ab968c;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Secondary</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#ab968c · secondary</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#a6bd84;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">In stock</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#a6bd84 · in stock</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#ddab72;border:1px solid #352a25"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">To buy</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#ab968c">#ddab72 · to buy</span></span></div>
+</div>
+<div style="padding-top:14px;border-top:1px solid #352a25;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 17px Newsreader,serif">Newsreader</div>
+<div style="font-size:11.5px;color:#ab968c">headings, numbers</div>
+<div style="font:600 14px 'DM Sans',sans-serif;margin-top:6px">DM Sans</div>
+<div style="font-size:11.5px;color:#ab968c">UI, body, buttons</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2e-1b"><div class="dv-olabel"><a class="dv-oid" href="#2e-1b">2e-1b</a>Cocoa plum + terracotta — light</div>
+<div style="width:260px;padding:22px;background:#faf4f0;border-radius:14px;color:#2a1d20;font-family:'DM Sans',system-ui,sans-serif;display:flex;flex-direction:column;gap:18px;border:1px solid #ded0c8">
+<div style="font:400 19px Newsreader,serif">Palette</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#faf4f0;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Canvas</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#faf4f0 · canvas</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f3e9e3;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Raised</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#f3e9e3 · panels</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#ece0d9;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Inset</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#ece0d9 · fields</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#ded0c8;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Hairline</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#ded0c8 · borders</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#bd5227;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Terracotta</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#bd5227 · accent</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#2a1d20;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Text</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#2a1d20 · text</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#6f5b53;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Secondary</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#6f5b53 · secondary</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#3f6e3c;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">In stock</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#3f6e3c · in stock</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#8a5c1f;border:1px solid #ded0c8"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">To buy</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6f5b53">#8a5c1f · to buy</span></span></div>
+</div>
+<div style="padding-top:14px;border-top:1px solid #ded0c8;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 17px Newsreader,serif">Newsreader</div>
+<div style="font-size:11.5px;color:#6f5b53">headings, numbers</div>
+<div style="font:600 14px 'DM Sans',sans-serif;margin-top:6px">DM Sans</div>
+<div style="font-size:11.5px;color:#6f5b53">UI, body, buttons</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2e-2b"><div class="dv-olabel"><a class="dv-oid" href="#2e-2b">2e-2b</a>Warm ink + chili red — light</div>
+<div style="width:260px;padding:22px;background:#faf6f3;border-radius:14px;color:#221a17;font-family:'DM Sans',system-ui,sans-serif;display:flex;flex-direction:column;gap:18px;border:1px solid #dbd0c9">
+<div style="font:400 19px Newsreader,serif">Palette</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#faf6f3;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Canvas</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#faf6f3 · canvas</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#f2ebe6;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Raised</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#f2ebe6 · panels</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#eae1db;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Inset</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#eae1db · fields</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#dbd0c9;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Hairline</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#dbd0c9 · borders</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#c2381f;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Chili red</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#c2381f · accent</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#221a17;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Text</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#221a17 · text</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#6b5a52;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">Secondary</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#6b5a52 · secondary</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#456c36;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">In stock</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#456c36 · in stock</span></span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:#815718;border:1px solid #dbd0c9"></span><span style="display:flex;flex-direction:column"><span style="font-size:12.5px">To buy</span><span style="font:400 11px 'JetBrains Mono',monospace;color:#6b5a52">#815718 · to buy</span></span></div>
+</div>
+<div style="padding-top:14px;border-top:1px solid #dbd0c9;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 17px Newsreader,serif">Newsreader</div>
+<div style="font-size:11.5px;color:#6b5a52">headings, numbers</div>
+<div style="font:600 14px 'DM Sans',sans-serif;margin-top:6px">DM Sans</div>
+<div style="font-size:11.5px;color:#6b5a52">UI, body, buttons</div>
+</div>
+</div>
+</div>
+</div>
+<p class="dv-next"><a href="#2e">2e</a> keeps D1d's structure and copy, with an editorial serif treatment. Its palette and type are spelled out in <a href="#2e-1">2e-1</a>; <a href="#2e-2">2e-2</a> is a warm dark alternative on the same type pairing; <a href="#2e-1b">2e-1b</a> and <a href="#2e-2b">2e-2b</a> are their light-theme counterparts.</p>
+</section>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">autobourdain wireframes — grouped by platform, then by page. Three directions run through every screen: the <b>a</b> screens are plan-first, <b>b</b> kitchen-first, <b>c</b> ask-first — ids are platform + page + direction, e.g. <a class="dv-oid" href="#D2c">D2c</a></span></div>
+<p class="pfhd">Desktop</p>
+<p class="pghd">Home / today</p>
+<div class="dv-opts">
+<div class="dv-opt" id="D1d"><div class="dv-olabel"><a class="dv-oid" href="#D1d">D1d</a>Ask-first, trimmed — one recipe picked, effect on stock below</div><div class="f" style="width:1000px;min-height:625px">
+<div class="bar"><span>autobourdain</span><span style="margin-left:auto;font-weight:400;color:#6b6b6b">just me</span></div>
+<div class="body">
+<div class="side">
+<div class="nav on">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">kitchen covers</div><div class="t bd">4 of 6 planned meals</div></div>
+</div>
+<div class="col" style="max-width:250px;background:#faf9f6">
+<div class="row"><span class="btn p">Mix</span><span class="btn">My recipes only</span><span class="btn">New ideas only</span></div>
+<div class="box s"><div class="t bd">Ask</div><div class="ln" style="width:90%"></div><div class="ln" style="width:65%"></div><div class="t sm">"dinner tonight, 30 min, use the spinach"</div><div class="row"><span class="btn">Quick breakfast</span><span class="btn p">Proper dinner</span></div><div class="row"><span class="chip">≤ 30 min</span><span class="chip">from kitchen</span><span class="chip">no repeats</span></div><div class="spread"><div class="t sm">portions</div><div class="row"><span class="btn">−</span><span class="t bd">2</span><span class="btn">+</span></div></div><div class="row"><span class="btn b p">Suggest</span></div></div>
+<div class="box"><div class="t bd">Or plan ahead</div><div class="row"><span class="btn">Plan the week</span><span class="btn">Plan 3 dinners</span></div></div>
+<div class="box" style="margin-top:auto"><div class="t sm">recent</div><div class="t">Tue · pasta with greens</div><div class="t">Mon · frittata</div><div class="t sm">counted against repeats</div></div>
+</div>
+<div class="col">
+<div class="row" style="align-items:stretch;gap:9px">
+<div class="box s" style="flex:1;border-width:2px"><div class="spread"><div class="t bd">Spinach frittata</div><span class="t sm">20 min</span></div><div class="sq" style="height:58px">dish photo</div><div class="row"><span class="chip">from my recipes</span><span class="chip">★</span></div><div class="t sm">everything at home</div><div class="row"><span class="btn p">Chosen ✓</span><span class="btn">Recipe</span></div></div>
+<div class="box s" style="flex:1"><div class="spread"><div class="t bd">Miso salmon bowl</div><span class="t sm">35 min</span></div><div class="sq" style="height:58px">dish photo</div><div class="row"><span class="chip">new idea</span></div><div class="t sm">buy 3 items</div><div class="row"><span class="btn">Choose</span><span class="btn">Save only</span></div></div>
+<div class="box" style="flex:.85"><div class="t bd">More from my recipes</div><div class="spread"><div class="t">Sausage traybake · 40m</div><span class="btn">Use</span></div><div class="spread"><div class="t">Lemon chicken · 45m</div><span class="btn">Use</span></div><div class="t sm">7 saved recipes fit this slot</div><div class="row"><span class="btn">Browse all 46</span></div></div>
+</div>
+<div class="box"><div class="spread"><div class="t bd">Refine</div><span class="btn">↺ Try again</span></div><div class="row"><span class="chip">lighter</span><span class="chip">faster</span><span class="chip">more protein</span><span class="chip">use the freezer</span><span class="chip">type your own…</span></div></div>
+<div class="hr"></div>
+<div class="spread"><p class="h">Spinach frittata · what it takes</p><span class="chip">2 portions</span></div>
+<div class="row" style="align-items:stretch;gap:9px">
+<div class="box" style="flex:1"><div class="spread"><div class="t bd">Used up from the kitchen</div><span class="t sm">deducted after cooking</span></div><div class="spread"><div class="t">Eggs</div><span class="t sm">6 → 3 pcs</span></div><div class="spread"><div class="t">Spinach</div><span class="t sm">200 → 100 g · expiring Thu</span></div><div class="spread"><div class="t">Butter</div><span class="t sm">250 → 235 g</span></div></div>
+<div class="box" style="flex:1"><div class="spread"><div class="t bd">Needs buying</div><span class="t sm">1 item</span></div><div class="spread"><div class="t">Parmesan 100 g</div><span class="btn">Add to list</span></div><div class="t sm">everything else is at home</div><div class="spread"><div class="t sm">skip it?</div><span class="btn">Swap ingredient</span></div></div>
+</div>
+<div class="spread" style="margin-top:auto"><div class="row"><span class="t sm">lands in</span><span class="chip">Tue · dinner</span><span class="btn">Change slot</span></div><div class="row"><span class="btn b">Cancel</span><span class="btn b p">Confirm meal</span></div></div>
+</div>
+</div>
+</div></div>
+</div>
+<p class="pghd">Week plan</p>
+<div class="dv-opts" style="display:grid;grid-template-columns:max-content max-content;align-items:start">
+<div class="dv-opt" id="D2c"><div class="dv-olabel"><a class="dv-oid" href="#D2c">D2c</a>Ask-first — Week board built from asks</div><div class="f" style="width:1000px;min-height:700px">
+<div class="bar"><span>Week board</span><span class="chip" style="margin-left:auto">6 from kitchen</span><span class="chip">4 to buy</span><span class="btn p">Shopping list</span></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav on">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">kitchen covers</div><div class="t bd">6 of 10 planned meals</div></div>
+</div>
+<div class="col">
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:7px">
+<div class="box" style="gap:5px"><div class="t bd">Mon</div><div class="box s" style="padding:5px"><div class="t sm">breakfast 5m</div><div class="t">Oats</div></div><div class="box s" style="padding:5px"><div class="t sm">dinner 30m</div><div class="t">Green pasta</div></div><div class="t sm">+ add meal</div></div>
+<div class="box" style="gap:5px"><div class="t bd">Tue</div><div class="box s" style="padding:5px"><div class="t sm">dinner 45m</div><div class="t">Chicken stew</div></div><div class="t sm">+ add meal</div></div>
+<div class="box" style="gap:5px"><div class="t bd">Wed</div><div class="box s" style="padding:5px"><div class="t sm">lunch 15m</div><div class="t">Frittata</div></div><div class="t sm">+ add meal</div></div>
+<div class="box sel" style="gap:5px"><div class="t bd">Thu</div><div class="t sm">+ add meal</div><div class="sq" style="height:30px">empty day</div></div>
+<div class="box" style="gap:5px"><div class="t bd">Fri</div><div class="box s" style="padding:5px"><div class="t sm">dinner 40m</div><div class="t">Curry</div></div><div class="t sm">+ add meal</div></div>
+<div class="box" style="gap:5px"><div class="t bd">Sat</div><div class="box s" style="padding:5px"><div class="t sm">breakfast 15m</div><div class="t">Pancakes</div></div><div class="t sm">+ add meal</div></div>
+<div class="box" style="gap:5px"><div class="t bd">Sun</div><div class="box s" style="padding:5px"><div class="t sm">dinner 60m</div><div class="t">Roast · 4 portions</div></div><div class="t sm">leftovers → Mon lunch</div></div>
+</div>
+<div class="box s" style="gap:8px;background:#fffbe8">
+<div class="spread"><div class="t bd">Add a meal to Thu</div><div class="row"><span class="t sm">empty day</span><span class="t sm">clear selection</span></div></div>
+<div class="row"><span class="t sm">meal type</span><span class="chip">breakfast</span><span class="chip">lunch</span><span class="btn p" style="font-size:10.5px">proper dinner</span><span class="chip">quick dinner</span><span class="chip">snack</span><span class="t sm" style="margin-left:6px">time limit</span><span class="btn">≤ 45 min</span></div>
+<div class="row"><span class="t sm">where from</span><span class="btn p" style="font-size:10.5px">My recipes · 7 fit</span><span class="btn" style="font-size:10.5px">New idea</span><span class="btn" style="font-size:10.5px">Leftovers</span><span class="btn" style="font-size:10.5px">Type it myself</span><span class="ln" style="flex:1;min-width:120px;margin-left:6px"></span><span class="t sm">"something with the freezer chicken"</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+<div class="box s" style="padding:7px"><div class="spread"><div class="t bd">Fish with peas</div><span class="t sm">25m</span></div><div class="t sm">all ingredients at home ★</div><div class="row"><span class="btn p" style="font-size:10.5px">Chosen ✓</span><span class="btn" style="font-size:10.5px">Recipe</span></div></div>
+<div class="box" style="padding:7px"><div class="spread"><div class="t">Sausage traybake</div><span class="t sm">40m</span></div><div class="t sm">buy 1 · uses expiring spinach</div><div class="row"><span class="btn" style="font-size:10.5px">Choose</span></div></div>
+<div class="box" style="padding:7px"><div class="spread"><div class="t">Lemon chicken</div><span class="t sm">45m</span></div><div class="t sm">not cooked in 6 weeks</div><div class="row"><span class="btn" style="font-size:10.5px">Choose</span></div></div>
+</div>
+<div class="spread"><div class="row"><span class="t sm">portions</span><span class="btn">−</span><span class="t bd">2</span><span class="btn">+</span><span class="chip">leftovers → Fri lunch</span></div><div class="row"><span class="t sm">adds nothing to buy</span><span class="btn p">Add to Thursday</span></div></div>
+</div>
+<div class="row" style="align-items:stretch;gap:9px">
+<div class="box" style="flex:1"><div class="t bd">To buy for this board</div><div class="row"><span class="chip">chicken thighs</span><span class="chip">coconut milk ×2</span><span class="chip">lemons ×3</span><span class="chip">parmesan</span></div></div>
+<div class="box" style="flex:1"><div class="t bd">Fill a day from my recipes</div><div class="row"><span class="chip">Sausage traybake 40m</span><span class="chip">Lemon chicken 45m</span><span class="chip">Tuna salad 15m</span><span class="btn">Browse all 46</span></div><div class="t sm">drag a saved recipe onto a day, or let the ask pick from it</div></div>
+<div class="box" style="flex:1"><div class="t bd">Ask to change the board</div><div class="ln" style="width:80%"></div><div class="t sm">"swap Thursday for something with the freezer chicken"</div></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:auto">
+<div class="box" style="padding:6px"><div class="t sm">Mon · 35 min</div></div><div class="box" style="padding:6px"><div class="t sm">Tue · 45 min</div></div><div class="box" style="padding:6px"><div class="t sm">Wed · 15 min</div></div><div class="box" style="padding:6px"><div class="t sm">Thu · —</div></div><div class="box" style="padding:6px"><div class="t sm">Fri · 40 min</div></div><div class="box" style="padding:6px"><div class="t sm">Sat · 15 min</div></div><div class="box" style="padding:6px"><div class="t sm">Sun · 60 min</div></div>
+</div>
+</div>
+</div>
+</div></div>
+</div>
+<p class="pghd">Kitchen + shopping list</p>
+<div class="dv-opts" style="display:grid;grid-template-columns:max-content max-content;align-items:start">
+<div class="dv-opt" id="D3a"><div class="dv-olabel"><a class="dv-oid" href="#D3a">D3a</a>Plan-first — My kitchen + shopping list</div><div class="f" style="width:1000px;height:583px">
+<div class="bar"><span>My kitchen</span><span class="btn" style="margin-left:auto">+ Add item</span></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav on">My kitchen</div><div class="nav">Shopping list</div><div class="nav">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">cookable now</div><div class="t bd">12 of 46</div></div>
+</div>
+<div class="col" style="flex:1.5;gap:6px;padding:9px 10px">
+<div class="row" style="gap:5px"><span class="chip">All 42</span><span class="chip">Fridge 14</span><span class="chip">Freezer 9</span><span class="chip">Pantry 19</span><span class="chip">Expiring 3</span><span class="chip">Low 4</span><span class="btn" style="margin-left:auto">Bulk edit</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-content:start">
+<div>
+<div class="t bd" style="border-bottom:1.2px solid #1a1a1a;padding-bottom:2px">Fridge · 14</div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Eggs</div><div class="row" style="gap:4px"><span class="t sm">6 pcs</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Spinach <span class="t sm">use by Thu</span></div><div class="row" style="gap:4px"><span class="t sm">200 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Yoghurt <span class="t sm">use by Wed</span></div><div class="row" style="gap:4px"><span class="t sm">500 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Parmesan</div><div class="row" style="gap:4px"><span class="t sm">40 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Milk</div><div class="row" style="gap:4px"><span class="t sm">1 L</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Butter</div><div class="row" style="gap:4px"><span class="t sm">200 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Carrots</div><div class="row" style="gap:4px"><span class="t sm">5 pcs</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="t bd" style="border-bottom:1.2px solid #1a1a1a;padding:7px 0 2px">Freezer · 9</div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Chicken thighs</div><div class="row" style="gap:4px"><span class="t sm">400 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Peas</div><div class="row" style="gap:4px"><span class="t sm">1 bag</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Bread</div><div class="row" style="gap:4px"><span class="t sm">½ loaf</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0"><div class="t">Berries</div><div class="row" style="gap:4px"><span class="t sm">300 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+</div>
+<div>
+<div class="t bd" style="border-bottom:1.2px solid #1a1a1a;padding-bottom:2px">Pantry · 19</div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Pasta</div><div class="row" style="gap:4px"><span class="t sm">500 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Rice <span class="t sm">low</span></div><div class="row" style="gap:4px"><span class="t sm">150 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Tinned tomatoes</div><div class="row" style="gap:4px"><span class="t sm">×3</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Coconut milk</div><div class="row" style="gap:4px"><span class="t sm">0</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Chickpeas</div><div class="row" style="gap:4px"><span class="t sm">×2</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Olive oil <span class="t sm">low</span></div><div class="row" style="gap:4px"><span class="t sm">150 ml</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Stock cubes</div><div class="row" style="gap:4px"><span class="t sm">×6</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Flour</div><div class="row" style="gap:4px"><span class="t sm">1 kg</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Soy sauce</div><div class="row" style="gap:4px"><span class="t sm">200 ml</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Lentils</div><div class="row" style="gap:4px"><span class="t sm">400 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Oats</div><div class="row" style="gap:4px"><span class="t sm">800 g</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+<div class="spread" style="padding:3px 0"><div class="t">Peanut butter</div><div class="row" style="gap:4px"><span class="t sm">1 jar</span><span class="btn" style="padding:1px 6px">−</span><span class="btn" style="padding:1px 6px">+</span></div></div>
+</div>
+</div>
+<div class="spread" style="margin-top:auto;border-top:1.2px solid #1a1a1a;padding-top:5px"><div class="t sm">quantities deduct as you cook · undo last deduction</div><div class="row" style="gap:5px"><span class="btn">Scan receipt</span><span class="btn">Undo</span></div></div>
+</div>
+<div class="col" style="border-left:1.5px solid #1a1a1a;background:#faf9f6;gap:6px;padding:9px 10px;flex:.85">
+<div class="spread"><p class="h">Shopping list</p><span class="chip">5 items</span></div>
+<p class="sub" style="margin-top:-3px">generated from the week's gaps</p>
+<div style="border-top:1.2px solid #1a1a1a">
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">☐ Chicken thighs 600 g</div><span class="t sm">Thu</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">☐ Coconut milk ×2</div><span class="t sm">Fri</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">☐ Lemons ×3</div><span class="t sm">2 meals</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">☐ Parmesan 100 g</div><span class="t sm">Tue</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">☐ Rice 1 kg</div><span class="t sm">low</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t sm">+ add anything</div></div>
+</div>
+<div class="t bd" style="padding-top:4px">Running low, not needed yet</div>
+<div style="border-top:1.2px solid #1a1a1a">
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Olive oil</div><span class="btn" style="padding:1px 6px">add</span></div>
+<div class="spread" style="padding:3px 0;border-bottom:1px solid #e2e0da"><div class="t">Stock cubes</div><span class="btn" style="padding:1px 6px">add</span></div>
+</div>
+<div class="t sm" style="padding-top:4px">checked items land in My kitchen with today's date</div>
+<div class="row" style="margin-top:auto;gap:5px"><span class="btn b p">Mark all bought</span></div>
+</div>
+</div>
+</div></div>
+
+</div>
+<p class="pghd">Recipe list</p>
+<div class="dv-opts" style="display:grid;grid-template-columns:max-content max-content;align-items:start">
+<div class="dv-opt" id="D4a-1"><div class="dv-olabel"><a class="dv-oid" href="#D4a-1">D4a-1</a>Library grid — default state, add panel closed</div><div class="f" style="width:1000px;min-height:560px">
+<div class="bar"><span>My recipes · 46 saved</span><div class="row" style="margin-left:auto"><span class="btn">+ Add a recipe</span></div></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav on">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">cookable now</div><div class="t bd">12 of 46</div></div>
+</div>
+<div class="col">
+<div class="row"><span class="chip">All types</span><span class="chip">Proper dinner</span><span class="chip">Quick breakfast</span><span class="chip">≤ 30 min</span><span class="chip">★ great</span><span class="chip">cookable now</span><span class="chip">tag: freezer</span><span class="btn">Sort: last cooked</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px">
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Spinach frittata</div><span class="t sm">20 min</span></div><div class="row"><span class="chip">Quick dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">eggs</span><span class="chip">veg</span></div><div class="t sm">cooked 4× · all at home</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Green pasta</div><span class="t sm">30 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">★ great</span></div><div class="row"><span class="chip">pasta</span><span class="chip">quick</span></div><div class="t sm">cooked 2 days ago</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Chicken curry</div><span class="t sm">40 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">freezer</span><span class="chip">batch</span></div><div class="t sm">buy 2 items</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Overnight oats</div><span class="t sm">5 min</span></div><div class="row"><span class="chip">Quick breakfast</span><span class="chip">unrated</span></div><div class="row"><span class="chip">prep ahead</span></div><div class="t sm">cooked 12×</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Tuna salad</div><span class="t sm">15 min</span></div><div class="row"><span class="chip">Packed lunch</span><span class="chip">unrated</span></div><div class="row"><span class="chip">fish</span></div><div class="t sm">never cooked</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Sausage traybake</div><span class="t sm">40 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">oven</span></div><div class="t sm">5 weeks ago</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Miso soup</div><span class="t sm">10 min</span></div><div class="row"><span class="chip">Quick dinner</span><span class="chip">★ great</span></div><div class="row"><span class="chip">pantry</span></div><div class="t sm">cooked 8×</div></div>
+<div class="box s" style="opacity:.55"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Lentil bake</div><span class="t sm">55 min</span></div><div class="row"><span class="chip">rated bad</span></div><div class="t sm">never suggested again · undo</div></div>
+</div>
+<div class="row"><span class="btn">Show unrated · 6</span><span class="t sm">…38 more</span></div>
+</div>
+</div>
+</div></div>
+
+<div class="dv-opt" id="D4a-2"><div class="dv-olabel"><a class="dv-oid" href="#D4a-2">D4a-2</a>Library grid — add panel open</div><div class="f" style="width:1000px;min-height:560px">
+<div class="bar"><span>My recipes · 46 saved</span><div class="row" style="margin-left:auto"><span class="btn p">+ Add a recipe</span></div></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav on">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">cookable now</div><div class="t bd">12 of 46</div></div>
+</div>
+<div class="col">
+<div class="row"><span class="chip">All types</span><span class="chip">Proper dinner</span><span class="chip">Quick breakfast</span><span class="chip">≤ 30 min</span><span class="chip">★ great</span><span class="chip">cookable now</span><span class="chip">tag: freezer</span><span class="btn">Sort: last cooked</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Spinach frittata</div><span class="t sm">20 min</span></div><div class="row"><span class="chip">Quick dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">eggs</span><span class="chip">veg</span></div><div class="t sm">cooked 4× · all at home</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Green pasta</div><span class="t sm">30 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">★ great</span></div><div class="row"><span class="chip">pasta</span><span class="chip">quick</span></div><div class="t sm">cooked 2 days ago</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Chicken curry</div><span class="t sm">40 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">freezer</span><span class="chip">batch</span></div><div class="t sm">buy 2 items</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Overnight oats</div><span class="t sm">5 min</span></div><div class="row"><span class="chip">Quick breakfast</span><span class="chip">unrated</span></div><div class="row"><span class="chip">prep ahead</span></div><div class="t sm">cooked 12×</div></div>
+<div class="box s" style="opacity:.55"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Lentil bake</div><span class="t sm">55 min</span></div><div class="row"><span class="chip">rated bad</span></div><div class="t sm">never suggested again · undo</div></div>
+<div class="box"><div class="t bd">Saved from a suggestion</div><div class="t sm">Anything the planner proposes has a Save button; cooked meals offer "save &amp; rate" afterwards. Only saved recipes carry a rating — everything starts unrated.</div><div class="row"><span class="btn">Show unrated · 6</span></div></div>
+</div>
+</div>
+<div class="col" style="border-left:1.5px solid #1a1a1a;background:#faf9f6;max-width:300px">
+<p class="h">Add a recipe</p>
+<div class="row"><span class="btn p">By prompt</span><span class="btn">By hand</span><span class="btn">Paste / link</span></div>
+<div class="box s"><div class="t bd">Describe it</div><div class="ln" style="width:90%"></div><div class="ln" style="width:70%"></div><div class="t sm">"my mum's meatballs, 45 min, makes 4"</div><div class="row"><span class="btn b p">Draft recipe</span></div></div>
+<div class="box"><div class="t bd">Then confirm</div><div class="spread"><div class="t">Meal type</div><span class="btn">Proper dinner</span></div><div class="spread"><div class="t">Time</div><span class="btn">45 min</span></div><div class="spread"><div class="t">Portions</div><span class="btn">4</span></div><div class="spread"><div class="t">Rating</div><div class="row"><span class="chip">Bad ✕</span><span class="btn p">Unrated</span><span class="chip">★ Great</span></div></div><div class="row"><span class="chip">family</span><span class="chip">batch</span><span class="chip">+ tag</span></div></div>
+<div class="row"><span class="btn b">Cancel</span><span class="btn b p">Save to list</span></div>
+</div>
+</div>
+</div></div>
+
+<div class="dv-opt" id="D4a-3"><div class="dv-olabel"><a class="dv-oid" href="#D4a-3">D4a-3</a>Library grid — recipe selected, detail panel open</div><div class="f" style="width:1000px;min-height:560px">
+<div class="bar"><span>My recipes · 46 saved</span><div class="row" style="margin-left:auto"><span class="btn">+ Add a recipe</span></div></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav on">My recipes</div><div class="nav">Settings</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">cookable now</div><div class="t bd">12 of 46</div></div>
+</div>
+<div class="col">
+<div class="row"><span class="chip">All types</span><span class="chip">Proper dinner</span><span class="chip">Quick breakfast</span><span class="chip">≤ 30 min</span><span class="chip">★ great</span><span class="chip">cookable now</span><span class="chip">tag: freezer</span><span class="btn">Sort: last cooked</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Spinach frittata</div><span class="t sm">20 min</span></div><div class="row"><span class="chip">Quick dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">eggs</span><span class="chip">veg</span></div><div class="t sm">cooked 4× · all at home</div></div>
+<div class="box s"  style="outline:2.5px solid #1a1a1a;outline-offset:2px;background:#f3f2ee"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Green pasta</div><span class="t sm">30 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">★ great</span></div><div class="row"><span class="chip">pasta</span><span class="chip">quick</span></div><div class="t sm">selected</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Chicken curry</div><span class="t sm">40 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">freezer</span><span class="chip">batch</span></div><div class="t sm">buy 2 items</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Overnight oats</div><span class="t sm">5 min</span></div><div class="row"><span class="chip">Quick breakfast</span><span class="chip">unrated</span></div><div class="row"><span class="chip">prep ahead</span></div><div class="t sm">cooked 12×</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Tuna salad</div><span class="t sm">15 min</span></div><div class="row"><span class="chip">Packed lunch</span><span class="chip">unrated</span></div><div class="row"><span class="chip">fish</span></div><div class="t sm">never cooked</div></div>
+<div class="box s"><div class="sq" style="min-height:52px">dish photo</div><div class="spread"><div class="t bd">Sausage traybake</div><span class="t sm">40 min</span></div><div class="row"><span class="chip">Proper dinner</span><span class="chip">unrated</span></div><div class="row"><span class="chip">oven</span></div><div class="t sm">5 weeks ago</div></div>
+</div>
+<div class="row"><span class="btn">Show unrated · 6</span><span class="t sm">…40 more</span></div>
+</div>
+<div class="col" style="border-left:1.5px solid #1a1a1a;background:#faf9f6;max-width:300px">
+<div class="spread"><p class="h">Green pasta</p><span class="btn">close ✕</span></div>
+<div class="sq" style="min-height:70px">dish photo</div>
+<div class="row"><span class="chip">Proper dinner</span><span class="chip">30 min</span><span class="chip">★ great</span><span class="chip">serves 4</span></div>
+<div class="box s"><div class="t bd">Ingredients · 7</div><div class="t sm">all at home</div><div class="ln" style="width:85%"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:78%"></div></div>
+<div class="box s"><div class="t bd">Method</div><div class="ln" style="width:90%"></div><div class="ln" style="width:80%"></div><div class="t sm">cooked 2 days ago · 9× total</div></div>
+<div class="hr"></div>
+<div class="t sm">add to plan</div>
+<div class="row"><span class="btn">Today</span><span class="btn">Tomorrow</span><span class="btn">Pick a day…</span></div>
+<div class="row"><span class="btn b p">Add to plan</span></div>
+<div class="row"><span class="btn b">Adjust recipe</span></div>
+<div class="row"><span class="t sm" style="opacity:.6;text-decoration:underline">Delete recipe</span></div>
+</div>
+</div>
+</div></div>
+</div>
+
+<p class="pghd">Settings</p>
+<div class="dv-opts" style="display:grid;grid-template-columns:max-content max-content;align-items:start">
+<div class="dv-opt" id="d5b"><div class="dv-olabel"><a class="dv-oid" href="#d5b">d5b</a>Category master/detail — Meal types selected</div><div class="f" style="width:1000px;min-height:700px">
+<div class="bar"><span>Settings</span><span class="t sm" style="margin-left:auto">saved automatically</span></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav">My recipes</div><div class="nav on">Settings</div>
+</div>
+<div class="col" style="flex:none;width:182px;border-right:1.5px solid #1a1a1a;background:#faf9f6;gap:4px">
+<p class="sub">Preferences</p>
+<div class="nav">Household</div><div class="nav">Diet &amp; avoid</div><div class="nav">Planning rules</div>
+<p class="sub" style="margin-top:8px">Setup</p>
+<div class="nav on">Meal types</div><div class="nav">Kitchen defaults</div>
+<p class="sub" style="margin-top:8px">App</p>
+<div class="nav">Appearance</div><div class="nav">Account</div>
+<div class="box" style="margin-top:auto;padding:7px"><div class="t sm">5 types on · 1 off</div></div>
+</div>
+<div class="col">
+<div class="spread"><div><p class="h">Meal types</p><p class="sub">the slots the planner fills, and what each one allows</p></div><span class="btn p">+ New meal type</span></div>
+<div class="row"><span class="chip">5 active</span><span class="chip">1 off</span><span class="chip">drag to reorder</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+<div class="box s sel"><div class="spread"><div class="t bd">Quick dinner</div><span class="btn p">on</span></div><div class="row"><span class="chip">≤ 30 min</span><span class="chip">2 portions</span><span class="chip">Mon–Thu</span></div><div class="t sm">14 recipes · used 3× last week</div><div class="row"><span class="btn">Edit</span><span class="btn">Duplicate</span></div></div>
+<div class="box s"><div class="spread"><div class="t bd">Proper dinner</div><span class="btn p">on</span></div><div class="row"><span class="chip">≤ 60 min</span><span class="chip">4 portions</span><span class="chip">Fri–Sun</span></div><div class="t sm">21 recipes</div><div class="row"><span class="btn">Edit</span><span class="btn">Duplicate</span></div></div>
+<div class="box s"><div class="spread"><div class="t bd">Quick breakfast</div><span class="btn p">on</span></div><div class="row"><span class="chip">≤ 10 min</span><span class="chip">2 portions</span><span class="chip">every day</span></div><div class="t sm">6 recipes</div><div class="row"><span class="btn">Edit</span><span class="btn">Duplicate</span></div></div>
+<div class="box s"><div class="spread"><div class="t bd">Packed lunch</div><span class="btn p">on</span></div><div class="row"><span class="chip">≤ 20 min</span><span class="chip">3 portions</span><span class="chip">Mon–Fri</span></div><div class="t sm">5 recipes</div><div class="row"><span class="btn">Edit</span><span class="btn">Duplicate</span></div></div>
+<div class="box s" style="opacity:.55"><div class="spread"><div class="t bd">Weekend project</div><span class="btn">off</span></div><div class="row"><span class="chip">no time limit</span><span class="chip">6 portions</span><span class="chip">Sun</span></div><div class="t sm">not suggested while off</div></div>
+<div class="box"><div class="t bd">+ New meal type</div><div class="t sm">name, time budget, portions, which days</div></div>
+</div>
+<div class="hr"></div>
+<div class="box"><div class="t bd">Editing “Quick dinner”</div><div class="spread"><div class="t">Name</div><div class="ln" style="width:160px"></div></div><div class="spread"><div class="t">Time budget</div><div class="row"><span class="chip">15</span><span class="btn p">30</span><span class="chip">45</span><span class="chip">60</span><span class="chip">custom</span></div></div><div class="spread"><div class="t">Portions</div><div class="row"><span class="btn">−</span><span class="t bd">2</span><span class="btn">+</span></div></div><div class="spread"><div class="t">Days</div><div class="row"><span class="btn p">M</span><span class="btn p">T</span><span class="btn p">W</span><span class="btn p">T</span><span class="chip">F</span><span class="chip">S</span><span class="chip">S</span></div></div><div class="row"><span class="btn b">Cancel</span><span class="btn b p">Save type</span></div></div>
+</div>
+</div>
+</div></div>
+
+<div class="dv-opt" id="d5b-2"><div class="dv-olabel"><a class="dv-oid" href="#d5b-2">d5b-2</a>Same layout — Appearance selected</div><div class="f" style="width:1000px;min-height:700px">
+<div class="bar"><span>Settings</span><span class="t sm" style="margin-left:auto">saved automatically</span></div>
+<div class="body">
+<div class="side">
+<div class="nav">Today</div><div class="nav">Week plan</div><div class="nav">My kitchen</div><div class="nav">Shopping list</div><div class="nav">My recipes</div><div class="nav on">Settings</div>
+</div>
+<div class="col" style="flex:none;width:182px;border-right:1.5px solid #1a1a1a;background:#faf9f6;gap:4px">
+<p class="sub">Preferences</p>
+<div class="nav">Household</div><div class="nav">Diet &amp; avoid</div><div class="nav">Planning rules</div>
+<p class="sub" style="margin-top:8px">Setup</p>
+<div class="nav">Meal types</div><div class="nav">Kitchen defaults</div>
+<p class="sub" style="margin-top:8px">App</p>
+<div class="nav on">Appearance</div><div class="nav">Account</div>
+</div>
+<div class="col">
+<div><p class="h">Appearance</p><p class="sub">theme sets the palette, mode sets light or dark</p></div>
+<div class="box s"><div class="spread"><div class="t bd">Mode</div><div class="row"><span class="btn p">Light</span><span class="btn">Dark</span><span class="btn">Match system</span></div></div><div class="t sm">Match system follows the device from sunset to sunrise</div></div>
+<div class="t sm">Theme</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+<div class="box s sel"><div class="spread"><div class="t bd">Cocoa plum</div><span class="chip">current</span></div><div class="row" style="gap:4px"><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#faf4f0"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#f3e9e3"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#bd5227"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#2a1d20"></span></div><div class="t sm">serif headings · terracotta accent</div></div>
+<div class="box s"><div class="t bd">Warm ink</div><div class="row" style="gap:4px"><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#faf6f3"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#f2ebe6"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#c2381f"></span><span style="width:18px;height:18px;border-radius:4px;border:1px solid #1a1a1a;background:#221a17"></span></div><div class="t sm">chili red accent</div></div>
+<div class="box"><div class="t bd">Cool sage</div><div class="t sm">placeholder for a third theme</div></div>
+</div>
+<div class="note">Mode and theme are independent: every theme ships a light and a dark set, so switching mode never changes the palette choice.</div>
+</div>
+</div>
+</div></div>
+
+</div>
+
+<p class="dv-next">Try next: "go deeper on <a class="dv-oid" href="#D2c">D2c</a>"</p>
+</section>
+</x-dc>
+</body>
+</html>

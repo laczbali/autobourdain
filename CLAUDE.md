@@ -44,22 +44,6 @@ nothing.
 - On yes: merge `develop` into `release` and push. Then switch back to
   `develop`.
 
-## Working style
-
-Do not make assumptions. When a decision could reasonably go more than one way -
-scope, library, data shape, naming, where a thing lives - ask before building.
-A short question costs less than the wrong implementation.
-
-**A question is a question.** When I ask one, answer it - do not touch files.
-Reading code to answer properly is fine; editing is not. If the answer suggests
-a change, say what you would change and stop there. Implement only when I
-actually ask for it.
-
-**A plan is a plan.** When I ask you to plan, plan - and stop. Answering your
-questions is not a green light: the answers feed the plan, they do not start
-the work. End with a short summary of what you would do and ask outright
-whether to begin. Only an explicit yes starts the implementation.
-
 ## Todo list
 
 `README.md` carries the live backlog under `## Todo`, in three sections: Setup,
@@ -96,6 +80,7 @@ Two deliberate exceptions:
 | `apps/api`        | Worker: Hono routes, better-auth, Drizzle schema, migrations |
 | `packages/shared` | Types shared by both sides                                   |
 | `wrangler.jsonc`  | The single Worker: static assets + API + D1 binding          |
+| `design`          | UI wireframes exported from Claude Design - reference only   |
 
 npm workspaces. Install from the repo root, never from inside a workspace.
 

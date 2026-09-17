@@ -16,6 +16,7 @@ export default tseslint.config(
       'apps/api/migrations/**',
       'worker-configuration.d.ts',
       '.wrangler/**',
+      'design/**',
     ],
   },
 

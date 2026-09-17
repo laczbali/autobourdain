@@ -10,6 +10,7 @@ apps/mobile       Expo app        expo-router, NativeWind, TanStack Query
 apps/api          Worker API      Hono, better-auth, Drizzle -> D1
 packages/shared   shared types
 wrangler.jsonc    the Worker      static assets + API + D1 binding
+design            wireframes      exported from Claude Design, reference only
 ```
 
 Deployed at <https://autobourdain.blaczko.com>.
@@ -21,16 +22,93 @@ since git history is the record.
 
 ### Next up
 
-- [ ] Decide what the app actually does - data model and first screens. Nothing
-      domain-specific exists yet; the app is scaffolding plus auth
-- [ ] Replace the placeholder icon, splash and favicon in
-      `apps/mobile/assets/images` - they are still Expo's defaults
+Ordered. Each block is expected to land before the next one starts, and the
+blocks after the Today page are deliberately coarse - they get broken down when
+they come up.
+
+**1. Styling foundation**
+
+- [ ] Semantic colour tokens - canvas, raised, inset, hairline, accent, text,
+      secondary, in-stock, to-buy - as CSS variables mapped into
+      `tailwind.config.js`, so a theme is a set of variable values rather than a
+      set of classNames
+- [ ] Cocoa plum and Warm ink palettes, light and dark each, from the hi-fi
+      passes in `design/` (`2e-1`, `2e-1b`, `2e-2`, `2e-2b`)
+- [ ] Mode and theme independent: mode picks light or dark, theme picks the
+      palette, and switching one never changes the other
+- [ ] Type: Newsreader for headings and numbers, DM Sans for UI and body, loaded
+      through `expo-font` with the same pairing on web
+- [ ] Primitives on top of the tokens - heading/text scale, Button, Chip,
+      Card/panel, form field
+- [ ] Move `index.tsx` and `sign-in.tsx` off the hardcoded `neutral-*` classes
+      onto the tokens
+
+**2. App shell and navigation**
+
+- [ ] Router layout with destinations: Today, Week plan, Kitchen, Recipes, Settings
+- [ ] Sidebar
+- [ ] Placeholder screen for every destination, so the nav walks end to end
+- [ ] Signed-out handling: what an unauthenticated visitor sees instead of the shell
+
+**3. Settings scaffolding and Appearance**
+
+- [ ] Settings shell per `d5b` - category rail (Preferences / Setup / App)
+- [ ] `userPreferences` in `apps/api/src/db/schema.ts` + migration - theme and
+      mode stored on the user
+- [ ] `GET` / `PATCH /api/preferences`, with a TanStack Query hook that updates
+      optimistically
+- [ ] Appearance section: mode (Light / Dark / Match system) and a theme picker
+      with a swatch per theme
+- [ ] Apply the stored preference before first paint, so there is no flash of
+      the wrong palette on load
+
+**4. Today page - first pass**
+
+A random suggestion with refinements, and nothing else: no previous
+recommendations, no saved recipes, no kitchen stock.
+Leave out, rather than fake, everything that needs data we do not have:
+"everything at home", recently cooked, repeat counting, stock deduction
+
+- [ ] Pick the model provider - Workers AI binding vs an Anthropic API key as a
+      Cloudflare secret. Weigh cost, latency and how well each holds a response
+      schema
+- [ ] `POST /api/suggest`: ask text, meal type, time limit and portions in; a
+      recipe out (title, time, portions, ingredients, method), validated against
+      a schema in the Worker before it reaches the client
+- [ ] Today screen per `D1d` - ask field, meal-type chips, time and portion
+      controls, Suggest
+- [ ] Suggestion card plus the "what it takes" detail beside it
+- [ ] Refinements, details to be decided
+- [ ] Pending and failure states for a call that takes seconds and can fail
+
+**5. Followup steps**
+
+- [ ] Settings - recipe preferences
+- [ ] Kitchen item tracking
+- [ ] Recipes
+- [ ] Week planning
 
 ### Later
 
+- [ ] Recipe photos - every wireframe has a dish image and we have no store for
+      one yet
+- [ ] Receipt scanning into the kitchen list
+- [ ] Drag a saved recipe onto a day on the week board
+- [ ] Narrow-screen nav shape is undecided - sidebar vs bottom tabs. Decide
+      before the app matters on a phone
 - [ ] EAS build configuration for iOS/Android
 - [ ] Set `EXPO_PUBLIC_API_URL` to the deployed origin for native builds - they
       have no `window.location` to fall back to
+
+## Design
+
+`design/` holds the UI wireframes, exported from the **Meal Planning App
+Wireframes** project on <https://claude.ai/design>. Open
+`design/Meal Planner Wireframes.dc.html` straight from disk to view them - it
+loads its `support.js` runtime by relative path and needs no server.
+
+Reference only: nothing imports it, nothing builds it, and it is excluded from
+ESLint and Prettier. Edits belong on claude.ai/design, then a re-export.
 
 ## Prerequisites
 

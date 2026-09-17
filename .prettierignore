@@ -6,6 +6,9 @@ apps/mobile/dist/
 apps/mobile/.expo/
 .wrangler/
 
+# design reference, exported from claude.ai/design
+design/
+
 # generated
 apps/api/migrations/
 worker-configuration.d.ts
