@@ -1,9 +1,10 @@
 import type { Suggestion } from '@autobourdain/shared';
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Body, Caption, Eyebrow, Heading, Stepper } from '@/components/ui';
 
+import { formatDuration } from './duration';
 import { formatIngredientAmount } from './scale';
 
 type Props = {
@@ -27,10 +28,14 @@ export function WhatItTakes({ suggestion, portions, onPortionsChange, stacked }:
   return (
     <View className="gap-4">
       <View className="flex-row flex-wrap items-center justify-between gap-x-6 gap-y-2">
-        <Heading level={2} className="flex-shrink">
-          {suggestion.title}{' '}
-          <Text className="font-display-italic text-secondary">what it takes</Text>
-        </Heading>
+        {/* The time sits with the title, as on the card, and well clear of the
+            portions control. */}
+        <View className="flex-shrink flex-row items-baseline gap-3">
+          <Heading level={2} className="flex-shrink">
+            {suggestion.title}
+          </Heading>
+          <Caption tone="secondary">{formatDuration(suggestion.totalMinutes)}</Caption>
+        </View>
         <View className="flex-row items-center gap-2">
           <Caption tone="secondary">Portions</Caption>
           <Stepper value={portions} onChange={onPortionsChange} label="portions" />

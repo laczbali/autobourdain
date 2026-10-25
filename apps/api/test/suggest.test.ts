@@ -16,6 +16,7 @@ function suggestion(title: string) {
     title,
     description: 'A test dish.',
     portions: 2,
+    totalMinutes: 30,
     ingredients: [
       { name: 'Eggs', quantity: 4, unit: null },
       { name: 'Salt', quantity: null, unit: 'to taste' },

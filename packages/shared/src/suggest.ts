@@ -26,6 +26,8 @@ export const suggestionSchema = z.object({
   imageUrl: z.url().nullable(),
   /** How many the quantities below are for. */
   portions: z.number().int().positive(),
+  /** Start to table, waiting included. The model's estimate. */
+  totalMinutes: z.number().int().positive(),
   ingredients: z.array(ingredientSchema).min(1),
   /** The steps, in order. */
   method: z.array(z.string().min(1)).min(1),

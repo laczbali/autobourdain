@@ -20,6 +20,7 @@ function suggestion(title: string) {
     title,
     description: 'A test dish.',
     portions: 2,
+    totalMinutes: 30,
     ingredients: [{ name: 'Leeks', quantity: 2, unit: null }],
     method: ['Cook it.'],
   };

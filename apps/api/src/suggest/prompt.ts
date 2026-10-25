@@ -15,6 +15,7 @@ How to fill in each suggestion:
 - title: the dish's name, short, as a menu would put it.
 - description: one or two sentences for a card - what it is and why it is good, not how to make it.
 - portions: how many people the quantities feed. Use 2 unless the cook's preferences say otherwise.
+- totalMinutes: a realistic estimate of the whole time from starting to eating, in minutes, including any marinating, resting or oven time. If they asked for a time limit, keep to it.
 - ingredients: everything used, in the order it is used. Give quantity as a number in metric units (g, kg, ml, l), or tsp and tbsp for small amounts, with the unit in unit. Countable things, like eggs or onions, take a quantity and a null unit. Anything unmeasured takes a null quantity and its wording in unit, such as "to taste" or "a handful".
 - method: the steps in order, one action per step, each a sentence or two, with times and heat where they matter.
 

@@ -13,6 +13,7 @@ const { shape } = suggestionSchema;
 export const modelSuggestionSchema = suggestionSchema.omit({ id: true, imageUrl: true }).extend({
   description: shape.description.describe('A line or two for the card: what it is, not how.'),
   portions: shape.portions.describe('How many people the quantities feed.'),
+  totalMinutes: shape.totalMinutes.describe('Minutes from starting to eating, waiting included.'),
   method: shape.method.describe('The steps, in order, one action each.'),
 });
 

@@ -39,6 +39,7 @@ function suggestion(id: string, title: string, overrides: Partial<Suggestion> = 
     description: `A description of ${title}.`,
     imageUrl: null,
     portions: 2,
+    totalMinutes: 30,
     ingredients: [{ name: 'Rice', quantity: 150, unit: 'g' }],
     method: ['Cook it.'],
     ...overrides,
@@ -47,13 +48,14 @@ function suggestion(id: string, title: string, overrides: Partial<Suggestion> = 
 
 const SUGGESTIONS = [
   suggestion('frittata', 'Spinach frittata', {
+    totalMinutes: 20,
     ingredients: [
       { name: 'Spinach', quantity: 200, unit: 'g' },
       { name: 'Salt', quantity: null, unit: 'to taste' },
     ],
     method: ['Wilt the spinach.', 'Add the eggs and set under the grill.'],
   }),
-  suggestion('salmon', 'Miso salmon bowl'),
+  suggestion('salmon', 'Miso salmon bowl', { totalMinutes: 75 }),
   suggestion('pasta', 'Pasta with greens'),
 ];
 
@@ -225,7 +227,7 @@ describe.each([
 
     await fireEvent.press(screen.getAllByRole('button', { name: 'Choose' })[0]);
 
-    expect(screen.getByText('what it takes')).toBeTruthy();
+    expect(screen.getByText('Ingredients')).toBeTruthy();
     expect(screen.getByText('200 g')).toBeTruthy();
     expect(screen.getByText('to taste')).toBeTruthy();
 
@@ -233,6 +235,19 @@ describe.each([
 
     expect(screen.getByText('300 g')).toBeTruthy();
     expect(screen.getByText('to taste')).toBeTruthy();
+  });
+
+  it('shows how long each one takes, on the card and once chosen', async () => {
+    await renderToday();
+    await askFor('Dinner');
+    await screen.findByText('Spinach frittata');
+
+    expect(screen.getByText('20 min')).toBeTruthy();
+    expect(screen.getByText('1 h 15 min')).toBeTruthy();
+
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Choose' })[0]);
+
+    expect(screen.getAllByText('20 min')).toHaveLength(2);
   });
 
   it('forgets the choice when asked again', async () => {

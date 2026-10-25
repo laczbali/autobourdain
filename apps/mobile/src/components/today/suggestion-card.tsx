@@ -4,6 +4,8 @@ import { View } from 'react-native';
 
 import { Body, Button, Caption, Heading } from '@/components/ui';
 
+import { formatDuration } from './duration';
+
 type Props = {
   suggestion: Suggestion;
   chosen: boolean;
@@ -23,7 +25,7 @@ function divider(first: boolean, stacked: boolean) {
 }
 
 /**
- * One suggestion: photo, title, a line of description, and Choose. The recipe
+ * One suggestion: photo, title and time, a line of description, and Choose. The recipe
  * itself shows below the cards once chosen, so the card carries no Recipe
  * button. The chosen one is marked the way `2e` marks it - an accent rule
  * under the photo and a filled button - rather than by boxing the card.
@@ -50,7 +52,7 @@ export function SuggestionCard({ suggestion, chosen, onChoose, first, stacked }:
         <>
           <Photo url={suggestion.imageUrl} chosen={chosen} className="h-[96px] w-[128px]" />
           <View className="flex-1 gap-2">
-            <Heading level={3}>{suggestion.title}</Heading>
+            <Title suggestion={suggestion} level={3} />
             <Body tone="secondary">{suggestion.description}</Body>
             {choose}
           </View>
@@ -58,11 +60,23 @@ export function SuggestionCard({ suggestion, chosen, onChoose, first, stacked }:
       ) : (
         <>
           <Photo url={suggestion.imageUrl} chosen={chosen} className="h-[128px]" />
-          <Heading level={2}>{suggestion.title}</Heading>
+          <Title suggestion={suggestion} level={2} />
           <Body tone="secondary">{suggestion.description}</Body>
           {choose}
         </>
       )}
+    </View>
+  );
+}
+
+/** The title, with the time at the far end on its baseline, as `2e` sets it. */
+function Title({ suggestion, level }: { suggestion: Suggestion; level: 2 | 3 }) {
+  return (
+    <View className="flex-row items-baseline justify-between gap-3">
+      <Heading level={level} className="flex-shrink">
+        {suggestion.title}
+      </Heading>
+      <Caption tone="secondary">{formatDuration(suggestion.totalMinutes)}</Caption>
     </View>
   );
 }
