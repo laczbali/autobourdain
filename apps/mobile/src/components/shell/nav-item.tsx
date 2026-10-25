@@ -20,22 +20,38 @@ type Props = Omit<PressableProps, 'children'> & {
  * `text` in the medium weight. No fill, no pill - the rail carries no boxes at
  * all. The rule is there when unfocused too, in `transparent`, so selecting a
  * row does not shift the ones below it.
+ *
+ * Hovering any other row previews that mark at a lower pitch: the label steps
+ * up to `text`, over a `hairline` rule rather than the accent.
+ *
+ * A disabled row does not press, and is drawn in `muted` at 40% - the
+ * Stepper's disabled opacity - since `muted` alone sits too close to
+ * `secondary` to read as off. On web it keeps the default cursor, which the
+ * label inherits; otherwise the label shows the text cursor.
  */
-export function NavItem({ label, isFocused = false, ...rest }: Props) {
+export function NavItem({ label, isFocused = false, disabled: disabledProp, ...rest }: Props) {
+  const disabled = Boolean(disabledProp);
+
+  const row = isFocused
+    ? 'border-accent'
+    : disabled
+      ? 'border-transparent opacity-40 web:cursor-default'
+      : 'group border-transparent hover:border-hairline active:opacity-70';
+  const text = isFocused
+    ? `${typeScale.navCurrent} text-text`
+    : disabled
+      ? `${typeScale.nav} text-muted`
+      : `${typeScale.nav} text-secondary group-hover:text-text`;
+
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityState={{ selected: isFocused }}
-      className={`border-b-[1.5px] py-[7px] active:opacity-70 ${isFocused ? 'border-accent' : 'border-transparent'}`}
+      accessibilityState={{ selected: isFocused, disabled }}
+      disabled={disabled}
+      className={`border-b-[1.5px] py-[7px] ${row}`}
       {...rest}
     >
-      <Text
-        className={
-          isFocused ? `${typeScale.navCurrent} text-text` : `${typeScale.nav} text-secondary`
-        }
-      >
-        {label}
-      </Text>
+      <Text className={text}>{label}</Text>
     </Pressable>
   );
 }

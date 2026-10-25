@@ -116,10 +116,21 @@ describe('the shell', () => {
 
   it('marks the destination it is on', async () => {
     signedIn();
-    await renderShell('/week');
+    await renderShell('/settings');
 
     const selected = screen.getByRole('tab', { selected: true });
-    expect(within(selected).getByText('Week plan')).toBeTruthy();
+    expect(within(selected).getByText('Settings')).toBeTruthy();
+  });
+
+  it('disables the destinations with nothing behind them yet', async () => {
+    signedIn();
+    const { router } = await renderShell();
+
+    for (const name of ['Week plan', 'Kitchen', 'Recipes']) {
+      expect(screen.getByRole('tab', { name, disabled: true })).toBeTruthy();
+    }
+    await fireEvent.press(screen.getByRole('tab', { name: 'Kitchen' }));
+    expect(router.getPathname()).toBe('/');
   });
 
   it('carries the wordmark, and nothing about the account', async () => {
@@ -144,9 +155,9 @@ describe('the shell', () => {
     signedIn();
     const { router } = await renderShell();
 
-    await fireEvent.press(screen.getByRole('tab', { name: 'Kitchen' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'Settings' }));
 
-    expect(router.getPathname()).toBe('/kitchen');
-    expect(screen.getByText('Kitchen screen')).toBeTruthy();
+    expect(router.getPathname()).toBe('/settings');
+    expect(screen.getByText('Settings screen')).toBeTruthy();
   });
 });

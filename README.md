@@ -47,6 +47,9 @@ AI, their likes & dislikes under Settings -> Preferences, and
 
 **2. Followup steps**
 
+Each one's rail entry is `disabled` in
+`apps/mobile/src/components/shell/destinations.ts` until it lands.
+
 - [ ] Kitchen item tracking
 - [ ] Recipes
 - [ ] Week planning

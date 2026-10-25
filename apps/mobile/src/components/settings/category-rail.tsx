@@ -25,7 +25,9 @@ export function CategoryRail() {
     >
       {groups.map((group) => (
         <View key={group.label} className="gap-1">
-          <Eyebrow className="mb-1">{group.label}</Eyebrow>
+          {/* The default cursor, as on the rows - a heading in a nav is not
+              text to select. */}
+          <Eyebrow className="mb-1 web:cursor-default">{group.label}</Eyebrow>
           {/* Indented under their eyebrow, which is otherwise too close in
               size and tone to tell from a section. */}
           <View className="gap-1 pl-3">

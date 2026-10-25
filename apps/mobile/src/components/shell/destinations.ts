@@ -11,13 +11,16 @@ import type { Href } from 'expo-router';
  * `label` is what the rail says. The wireframes write the middle two as "My
  * kitchen" and "My recipes" - the shorter words are a deliberate choice, noted
  * in the README.
+ *
+ * `disabled` keeps a destination in the rail but not pressable, for the ones
+ * with nothing behind them yet.
  */
 export const DESTINATIONS = [
   { name: 'today', href: '/', label: 'Today' },
-  { name: 'week', href: '/week', label: 'Week plan' },
-  { name: 'kitchen', href: '/kitchen', label: 'Kitchen' },
-  { name: 'recipes', href: '/recipes', label: 'Recipes' },
+  { name: 'week', href: '/week', label: 'Week plan', disabled: true },
+  { name: 'kitchen', href: '/kitchen', label: 'Kitchen', disabled: true },
+  { name: 'recipes', href: '/recipes', label: 'Recipes', disabled: true },
   { name: 'settings', href: '/settings', label: 'Settings' },
-] as const satisfies readonly { name: string; href: Href; label: string }[];
+] as const satisfies readonly { name: string; href: Href; label: string; disabled?: boolean }[];
 
 export type Destination = (typeof DESTINATIONS)[number];
