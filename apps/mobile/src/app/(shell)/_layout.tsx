@@ -2,7 +2,7 @@ import { Redirect } from 'expo-router';
 import { TabSlot, useTabsWithTriggers } from 'expo-router/ui';
 import { View } from 'react-native';
 
-import { DESTINATIONS, Sidebar, TopBar } from '@/components/shell';
+import { DESTINATIONS, PreferencesSync, Sidebar, TopBar } from '@/components/shell';
 import { useSession } from '@/lib/auth-client';
 
 const TRIGGERS = DESTINATIONS.map((destination) => ({
@@ -23,7 +23,12 @@ export default function ShellLayout() {
   if (isPending) return <View className="flex-1 bg-canvas" />;
   if (!session?.user) return <Redirect href="/sign-in" />;
 
-  return <Shell />;
+  return (
+    <>
+      <PreferencesSync />
+      <Shell />
+    </>
+  );
 }
 
 /**

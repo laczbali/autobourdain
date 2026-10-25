@@ -1,0 +1,37 @@
+import { Link, usePathname } from 'expo-router';
+import { View } from 'react-native';
+
+import { NavItem } from '@/components/shell';
+import { Eyebrow } from '@/components/ui';
+
+import { SETTINGS_GROUPS } from './sections';
+
+/**
+ * The second rail, inside Settings: the categories from `d5b`, in `2e`'s
+ * vocabulary. It mirrors the shell's rail - no fill, a hairline down the right
+ * edge, the current row marked by the accent rule - with each group under an
+ * eyebrow, as `d5b` heads them.
+ */
+export function CategoryRail() {
+  const pathname = usePathname();
+
+  return (
+    <View
+      accessibilityRole="tablist"
+      className="w-[186px] flex-none gap-5 border-r border-hairline px-4 py-5"
+    >
+      {SETTINGS_GROUPS.map((group) => (
+        <View key={group.label} className="gap-1">
+          <Eyebrow className="mb-1">{group.label}</Eyebrow>
+          {group.sections.map((section) => (
+            // `role` is spelled out because Link hands down `role="link"`,
+            // which outranks NavItem's accessibilityRole - a link in a tablist.
+            <Link key={section.href} href={section.href} asChild>
+              <NavItem role="tab" label={section.label} isFocused={pathname === section.href} />
+            </Link>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}

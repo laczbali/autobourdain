@@ -1,3 +1,5 @@
+import type { Mode, ThemeName } from '@autobourdain/shared';
+
 /**
  * The token contract.
  *
@@ -32,18 +34,31 @@ export type Token = (typeof TOKENS)[number];
 /** A single theme's colours in one mode, as hex. */
 export type Palette = Record<Token, string>;
 
-export const THEMES = ['cocoa-plum', 'warm-ink'] as const;
-export type ThemeName = (typeof THEMES)[number];
+// The theme and mode names live in the shared package, since the API validates
+// stored preferences against them. Re-exported so the theme code keeps one
+// import.
+export { MODES, THEMES, type Mode, type ThemeName } from '@autobourdain/shared';
 
-/** What the user picks. `system` follows the OS. */
-export type Mode = 'light' | 'dark' | 'system';
 /** What `system` resolves to, and what a palette is actually chosen by. */
 export type ResolvedMode = 'light' | 'dark';
 
-/** Names for the theme picker in Settings (block 3). */
+/** Names for the theme picker in Settings. */
 export const THEME_LABELS: Record<ThemeName, string> = {
   'cocoa-plum': 'Cocoa plum',
   'warm-ink': 'Warm ink',
+};
+
+/** The line under each theme in the picker, from `d5b-2`. */
+export const THEME_NOTES: Record<ThemeName, string> = {
+  'cocoa-plum': 'terracotta accent',
+  'warm-ink': 'chili red accent',
+};
+
+/** Names for the mode picker in Settings. */
+export const MODE_LABELS: Record<Mode, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  system: 'Match system',
 };
 
 /**

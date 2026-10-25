@@ -2,7 +2,29 @@ import { act, render, renderHook } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import type { ReactNode } from 'react';
 
+import { readCachedAppearance, writeCachedAppearance } from './preference-cache';
 import { ThemeProvider, useTheme } from './theme-provider';
+
+// The device cache is a SecureStore or localStorage read; here it is whatever
+// each test says it is.
+jest.mock('./preference-cache', () => ({
+  readCachedAppearance: jest.fn(() => null),
+  writeCachedAppearance: jest.fn(),
+}));
+
+const mockRead = readCachedAppearance as jest.Mock;
+const mockWrite = writeCachedAppearance as jest.Mock;
+
+afterEach(() => {
+  mockRead.mockReset().mockReturnValue(null);
+  mockWrite.mockReset();
+});
+
+function renderUnseeded() {
+  return renderHook(() => useTheme(), {
+    wrapper: ({ children }: { children: ReactNode }) => <ThemeProvider>{children}</ThemeProvider>,
+  });
+}
 
 // @testing-library/react-native 14 renders and fires events asynchronously,
 // so every call here is awaited.
@@ -61,6 +83,33 @@ describe('ThemeProvider', () => {
     // leak out as itself.
     expect(result.current.mode).toBe('system');
     expect(result.current.resolvedMode).toBe('light');
+  });
+
+  it('starts from the cached appearance when given no starting values', async () => {
+    mockRead.mockReturnValue({ theme: 'warm-ink', mode: 'dark' });
+    const { result } = await renderUnseeded();
+    expect(result.current.theme).toBe('warm-ink');
+    expect(result.current.mode).toBe('dark');
+  });
+
+  it('falls back to the defaults when nothing is cached', async () => {
+    const { result } = await renderUnseeded();
+    expect(result.current.theme).toBe('cocoa-plum');
+    expect(result.current.mode).toBe('system');
+  });
+
+  it('lets given starting values win over the cache', async () => {
+    mockRead.mockReturnValue({ theme: 'warm-ink', mode: 'dark' });
+    const { result } = await renderTheme();
+    expect(result.current.theme).toBe('cocoa-plum');
+    expect(result.current.mode).toBe('light');
+  });
+
+  it('keeps the cache current as the appearance changes', async () => {
+    const { result } = await renderTheme();
+    await act(() => result.current.setTheme('warm-ink'));
+    await act(() => result.current.setMode('dark'));
+    expect(mockWrite).toHaveBeenLastCalledWith({ theme: 'warm-ink', mode: 'dark' });
   });
 
   it('refuses to work outside the provider', async () => {

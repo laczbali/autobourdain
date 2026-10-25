@@ -1,8 +1,11 @@
 /**
  * Types shared between the Worker API (apps/api) and the Expo app (apps/mobile).
- * Keep this package runtime-free: types and small pure helpers only, since it is
- * bundled by both Metro and workerd.
+ * Types, small pure helpers and zod schemas only, since it is bundled by both
+ * Metro and workerd. zod is the one runtime dependency - it is how both sides
+ * agree on what a valid request looks like.
  */
+
+export * from './preferences';
 
 export type HealthResponse = {
   ok: boolean;

@@ -1,8 +1,16 @@
-import type { HealthResponse, MeResponse } from '@autobourdain/shared';
+import {
+  preferencesPatchSchema,
+  type HealthResponse,
+  type MeResponse,
+  type Preferences,
+} from '@autobourdain/shared';
+import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { createMiddleware } from 'hono/factory';
 
 import { createAuth, trustedOrigins } from './auth';
+import { readPreferences, writePreferences } from './preferences';
 import { turnstilePage } from './turnstile-page';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -44,6 +52,39 @@ app.get('/api/me', async (c) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   return c.json<MeResponse>({ user: session?.user ?? null });
 });
+
+/**
+ * Turns away a request with no session, and hands the handlers after it the
+ * user's id.
+ */
+const requireUser = createMiddleware<{ Bindings: Env; Variables: { userId: string } }>(
+  async (c, next) => {
+    const auth = createAuth(c.env, new URL(c.req.url).origin);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (!session) return c.json({ error: 'Unauthorized' }, 401);
+    c.set('userId', session.user.id);
+    await next();
+  },
+);
+
+app.get('/api/preferences', requireUser, async (c) =>
+  c.json<Preferences>(await readPreferences(c.env, c.get('userId'))),
+);
+
+// The session is checked before the body, so a signed-out caller learns
+// nothing about which preferences exist.
+app.patch(
+  '/api/preferences',
+  requireUser,
+  zValidator('json', preferencesPatchSchema, (result, c) => {
+    if (!result.success) return c.json({ error: 'Invalid preferences' }, 400);
+  }),
+  async (c) => {
+    const userId = c.get('userId');
+    await writePreferences(c.env, userId, c.req.valid('json'));
+    return c.json<Preferences>(await readPreferences(c.env, userId));
+  },
+);
 
 // The Turnstile widget as a page, for the native app to load in a WebView -
 // see apps/api/src/turnstile-page.ts. Public and GET-only: the site key it

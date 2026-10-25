@@ -3,18 +3,28 @@ import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-lib
 import { Text } from 'react-native';
 
 import { useSession } from '@/lib/auth-client';
-import { ThemeProvider } from '@/theme/theme-provider';
+import { usePreferences } from '@/lib/preferences';
+import { ThemeProvider, useTheme } from '@/theme/theme-provider';
 
 import { DESTINATIONS } from './destinations';
 
-// The shell reads the session and the top bar signs out. Neither wants a real
-// better-auth client, SecureStore or a network in a unit test.
+// The gate reads the session, and once signed in loads the stored preferences.
+// Neither wants a real better-auth client, a query client or a network here.
 jest.mock('@/lib/auth-client', () => ({
   useSession: jest.fn(),
-  authClient: { signOut: jest.fn() },
+}));
+jest.mock('@/lib/preferences', () => ({
+  usePreferences: jest.fn(() => ({ data: undefined })),
 }));
 
 const mockUseSession = useSession as unknown as jest.Mock;
+const mockUsePreferences = usePreferences as unknown as jest.Mock;
+
+/** Shows what the ThemeProvider currently holds. Rendered on the Today stub. */
+function ThemeProbe() {
+  const { theme, mode } = useTheme();
+  return <Text>{`${theme} / ${mode}`}</Text>;
+}
 
 function signedIn() {
   mockUseSession.mockReturnValue({
@@ -50,7 +60,12 @@ async function renderShell(initialUrl = '/') {
     {
       _layout: RootLayout,
       '(shell)/_layout': ShellLayout,
-      '(shell)/index': () => <Text>Today screen</Text>,
+      '(shell)/index': () => (
+        <>
+          <Text>Today screen</Text>
+          <ThemeProbe />
+        </>
+      ),
       '(shell)/week': () => <Text>Week plan screen</Text>,
       '(shell)/kitchen': () => <Text>Kitchen screen</Text>,
       '(shell)/recipes': () => <Text>Recipes screen</Text>,
@@ -67,7 +82,10 @@ async function renderShell(initialUrl = '/') {
 }
 
 describe('the shell', () => {
-  afterEach(() => mockUseSession.mockReset());
+  afterEach(() => {
+    mockUseSession.mockReset();
+    mockUsePreferences.mockReturnValue({ data: undefined });
+  });
 
   it('sends a signed-out visitor to sign-in', async () => {
     mockUseSession.mockReturnValue({ data: null, isPending: false });
@@ -104,11 +122,22 @@ describe('the shell', () => {
     expect(within(selected).getByText('Week plan')).toBeTruthy();
   });
 
-  it('carries the wordmark', async () => {
+  it('carries the wordmark, and nothing about the account', async () => {
     signedIn();
     await renderShell();
 
     expect(screen.getByText('autobourdain')).toBeTruthy();
+    // Both moved to Settings > Account.
+    expect(screen.queryByText('Bourdain')).toBeNull();
+    expect(screen.queryByText('Sign out')).toBeNull();
+  });
+
+  it('applies the stored preferences once they load', async () => {
+    signedIn();
+    mockUsePreferences.mockReturnValue({ data: { theme: 'warm-ink', mode: 'dark' } });
+    await renderShell();
+
+    expect(screen.getByText('warm-ink / dark')).toBeTruthy();
   });
 
   it('navigates when a destination is pressed', async () => {

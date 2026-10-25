@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * better-auth core tables. The property names on each table must match
@@ -74,3 +74,31 @@ export const verification = sqliteTable('verification', {
 
 // --- application tables -------------------------------------------------
 // Add your own tables here, then `npm run db:generate` to emit a migration.
+// Keep `schema.md` beside this file in step with every change.
+
+/**
+ * A user's preferences, one row per key. A key with no row means the default
+ * from `DEFAULT_PREFERENCES` in the shared package.
+ *
+ * Keys and values are checked by `preferencesSchema` at the API, not here: the
+ * value is opaque JSON to SQLite, which is what lets a new preference ship
+ * without a migration.
+ */
+export const userPreferences = sqliteTable(
+  'user_preferences',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    value: text('value', { mode: 'json' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
+);

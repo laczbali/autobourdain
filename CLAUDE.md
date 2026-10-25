@@ -143,8 +143,11 @@ npm run db:migrate   # apply migrations to local D1
   real local D1. Storage is isolated per test _file_, not per test, so anything
   writing a row uses a unique email - see `testUser()` in `test/helpers.ts`.
   Bindings come from `vitest.config.ts`, never `.dev.vars`.
-- Schema changes: edit `apps/api/src/db/schema.ts`, then `npm run db:generate`.
-  Never hand-edit files in `apps/api/migrations`.
+- Schema changes: edit `apps/api/src/db/schema.ts`, then
+  `npm run db:generate -w @autobourdain/api -- --name <what_changed>`. Never
+  hand-edit files in `apps/api/migrations`.
+- `apps/api/src/db/schema.md` documents the schema, Mermaid diagram included.
+  Any change to `schema.ts` updates it in the same change.
 - better-auth field names are looked up by the _property_ name in the Drizzle
   schema, not the SQL column name. Don't rename those properties.
 - The auth instance is built per request (`createAuth(env, origin)`) because D1

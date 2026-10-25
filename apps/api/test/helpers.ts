@@ -52,14 +52,22 @@ export function get(path: string, options: RequestOptions = {}): Request {
   return new Request(`http://localhost${path}`, { headers: headersFor(options) });
 }
 
-export function post(path: string, body: unknown, options: RequestOptions = {}): Request {
+function withJson(method: string, path: string, body: unknown, options: RequestOptions): Request {
   const headers = headersFor(options);
   headers.set('Content-Type', 'application/json');
   return new Request(`http://localhost${path}`, {
-    method: 'POST',
+    method,
     headers,
     body: JSON.stringify(body),
   });
+}
+
+export function post(path: string, body: unknown, options: RequestOptions = {}): Request {
+  return withJson('POST', path, body, options);
+}
+
+export function patch(path: string, body: unknown, options: RequestOptions = {}): Request {
+  return withJson('PATCH', path, body, options);
 }
 
 /** Every Set-Cookie the response carries, folded into one Cookie header value. */

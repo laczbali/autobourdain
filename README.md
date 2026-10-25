@@ -26,20 +26,7 @@ Ordered. Each block is expected to land before the next one starts, and the
 blocks after the Today page are deliberately coarse - they get broken down when
 they come up.
 
-**1. Settings scaffolding and Appearance**
-
-- [ ] Settings shell - content and flow from `d5b`, treatment from `2e`:
-      category rail (Preferences / Setup / App)
-- [ ] `userPreferences` in `apps/api/src/db/schema.ts` + migration - theme and
-      mode stored on the user
-- [ ] `GET` / `PATCH /api/preferences`, with a TanStack Query hook that updates
-      optimistically
-- [ ] Appearance section: mode (Light / Dark / Match system) and a theme picker
-      with a swatch per theme
-- [ ] Apply the stored preference before first paint, so there is no flash of
-      the wrong palette on load
-
-**2. Today page - first pass**
+**1. Today page - first pass**
 
 A random suggestion with refinements, and nothing else: no previous
 recommendations, no saved recipes, no kitchen stock.
@@ -59,7 +46,7 @@ Leave out, rather than fake, everything that needs data we do not have:
 - [ ] Refinements, details to be decided
 - [ ] Pending and failure states for a call that takes seconds and can fail
 
-**3. Followup steps**
+**2. Followup steps**
 
 - [ ] Settings - recipe preferences
 - [ ] Kitchen item tracking
@@ -79,11 +66,13 @@ Leave out, rather than fake, everything that needs data we do not have:
 - [ ] Drag a saved recipe onto a day on the week board
 - [ ] Narrow-screen nav shape is undecided - sidebar vs bottom tabs. Decide
       before the app matters on a phone
-- [ ] The shell's contents diverge from `2e` on purpose: the account and a
-      sign-out where `2e` puts the household, no "kitchen covers" box in the
-      rail, shorter labels, and Shopping list folded into Kitchen rather than
-      being a sixth destination. The treatment follows `2e`; only what is in it
-      differs. Revisit once there is data behind any of it
+- [ ] The shell's contents diverge from `2e` on purpose: the right of the top
+      bar is empty where `2e` puts the household, no "kitchen covers" box in
+      the rail, shorter labels, and Shopping list folded into Kitchen rather
+      than being a sixth destination. The treatment follows `2e`; only what is
+      in it differs. Revisit once there is data behind any of it
+- [ ] Settings adds a second 186px rail beside the shell's, so the content
+      column starts 372px in. Settle it with the narrow-screen nav shape
 - [ ] `Shell` in `app/(shell)/_layout.tsx` opts out of React Compiler with
       `'use no memo'` - without it the memoised subtree swallows every
       navigation. Drop the directive when expo-router's headless tabs survive
@@ -303,17 +292,8 @@ origin, no fast refresh.
 
 ## Database changes
 
-Edit `apps/api/src/db/schema.ts`, then:
-
-```bash
-npm run db:generate        # writes apps/api/migrations/NNNN_*.sql
-npm run db:migrate         # apply locally
-npm run db:migrate:remote  # apply to Cloudflare
-```
-
-Never hand-edit generated migrations. The four auth tables are owned by
-better-auth — regenerate them with `npx @better-auth/cli generate` if you
-upgrade it.
+The schema, its diagram and the workflow for changing it are documented in
+[`apps/api/src/db/schema.md`](apps/api/src/db/schema.md).
 
 ## Deploying (Cloudflare dashboard, connected to Git)
 
@@ -420,12 +400,14 @@ For store builds:
 
 ## API
 
-| Route                | Purpose                                       |
-| -------------------- | --------------------------------------------- |
-| `GET /api/health`    | Liveness check                                |
-| `/api/auth/*`        | better-auth: sign-up, sign-in, OAuth          |
-| `GET /api/me`        | Current user, or `null`                       |
-| `GET /api/turnstile` | Turnstile widget page, for the native WebView |
+| Route                    | Purpose                                       |
+| ------------------------ | --------------------------------------------- |
+| `GET /api/health`        | Liveness check                                |
+| `/api/auth/*`            | better-auth: sign-up, sign-in, OAuth          |
+| `GET /api/me`            | Current user, or `null`                       |
+| `GET /api/preferences`   | The user's preferences, defaults filled in    |
+| `PATCH /api/preferences` | Change some preferences; returns them all     |
+| `GET /api/turnstile`     | Turnstile widget page, for the native WebView |
 
 Anything not under `/api/` is served from the web build, with unknown paths
 falling back to `index.html` so client-side routes work on reload.

@@ -1,4 +1,4 @@
-import type { HealthResponse } from '@autobourdain/shared';
+import type { HealthResponse, Preferences, PreferencesPatch } from '@autobourdain/shared';
 import { Platform } from 'react-native';
 
 import { authClient } from './auth-client';
@@ -29,3 +29,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 export const getHealth = () => apiFetch<HealthResponse>('/api/health');
+
+export const getPreferences = () => apiFetch<Preferences>('/api/preferences');
+
+export const patchPreferences = (patch: PreferencesPatch) =>
+  apiFetch<Preferences>('/api/preferences', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });

@@ -9,9 +9,19 @@ import { ScrollView } from 'react-native';
  * It carries no title. `2e` gives the content column no page heading either -
  * the rail's accent rule is what says where you are.
  */
-export function Page({ children }: { children?: ReactNode }) {
+export function Page({
+  children,
+  contentClassName = '',
+}: {
+  children?: ReactNode;
+  /** Extra classes on the content column, inside the scroll area. */
+  contentClassName?: string;
+}) {
   return (
-    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-[18px] px-6 py-5">
+    <ScrollView
+      className="flex-1 bg-canvas"
+      contentContainerClassName={`gap-[18px] px-6 py-5 ${contentClassName}`}
+    >
       {children}
     </ScrollView>
   );

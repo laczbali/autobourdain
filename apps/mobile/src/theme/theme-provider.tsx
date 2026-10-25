@@ -1,8 +1,10 @@
+import { DEFAULT_PREFERENCES } from '@autobourdain/shared';
 import { colorScheme } from 'nativewind';
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useColorScheme, View } from 'react-native';
 
 import { paletteVars, palettes } from './palettes';
+import { readCachedAppearance, writeCachedAppearance } from './preference-cache';
 import type { Mode, Palette, ResolvedMode, ThemeName } from './tokens';
 
 type ThemeContextValue = {
@@ -32,7 +34,11 @@ export function useTheme(): ThemeContextValue {
 
 type Props = {
   children: ReactNode;
-  /** Defaults, for tests and for rendering a fixed palette. */
+  /**
+   * Fixed starting values, for tests and for rendering a set palette. Left out,
+   * the provider starts from this device's cached appearance, then the
+   * defaults.
+   */
   initialTheme?: ThemeName;
   initialMode?: Mode;
 };
@@ -46,16 +52,19 @@ type Props = {
  * same on web and native - Tailwind's own `dark:` variant could only carry one
  * of the two axes, and only in a stylesheet.
  *
- * Nothing persists yet. Settings and the stored preference are block 3; they
- * drive `setTheme`/`setMode` rather than replacing them.
+ * The stored preference lives on the server and arrives late, after the
+ * session. So the provider starts from a copy cached on the device, read
+ * synchronously, and keeps that copy current - which is what stops the first
+ * paint from flashing the default palette. The server's value is pushed in
+ * through `setTheme`/`setMode` once it loads.
  */
-export function ThemeProvider({
-  children,
-  initialTheme = 'cocoa-plum',
-  initialMode = 'system',
-}: Props) {
-  const [theme, setTheme] = useState<ThemeName>(initialTheme);
-  const [mode, setMode] = useState<Mode>(initialMode);
+export function ThemeProvider({ children, initialTheme, initialMode }: Props) {
+  // Read once, on the first render only.
+  const [cached] = useState(readCachedAppearance);
+  const [theme, setTheme] = useState<ThemeName>(
+    initialTheme ?? cached?.theme ?? DEFAULT_PREFERENCES.theme,
+  );
+  const [mode, setMode] = useState<Mode>(initialMode ?? cached?.mode ?? DEFAULT_PREFERENCES.mode);
   const systemScheme = useColorScheme();
 
   const resolvedMode: ResolvedMode =
@@ -68,6 +77,11 @@ export function ThemeProvider({
   useEffect(() => {
     colorScheme.set(resolvedMode);
   }, [resolvedMode]);
+
+  // Kept on sign-out too, so the sign-in screen stays in the last palette.
+  useEffect(() => {
+    writeCachedAppearance({ theme, mode });
+  }, [theme, mode]);
 
   const value = useMemo(
     () => ({
