@@ -19,6 +19,8 @@ export const API_ERROR_CODES = [
   'ai_refused',
   /** The model answered twice with something that did not fit the schema. */
   'ai_bad_output',
+  /** The role is the admin's own, or set by `ADMIN_EMAILS`. */
+  'role_locked',
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

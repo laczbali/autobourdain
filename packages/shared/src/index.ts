@@ -5,9 +5,12 @@
  * agree on what a valid request looks like.
  */
 
+import type { Role } from './roles';
+
 export * from './ai';
 export * from './errors';
 export * from './preferences';
+export * from './roles';
 export * from './suggest';
 
 export type HealthResponse = {
@@ -22,6 +25,7 @@ export type SessionUser = {
   email: string;
   emailVerified: boolean;
   image?: string | null;
+  role: Role;
 };
 
 export type MeResponse = {

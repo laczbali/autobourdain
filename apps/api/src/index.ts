@@ -1,8 +1,12 @@
 import {
   aiKeyPatchSchema,
   aiKeyPutSchema,
+  parseRole,
   preferencesPatchSchema,
+  roleUpdateSchema,
   suggestRequestSchema,
+  type AdminUser,
+  type AdminUsersResponse,
   type AiKeyResponse,
   type AiKeyTestResponse,
   type AiModelsResponse,
@@ -10,6 +14,7 @@ import {
   type HealthResponse,
   type MeResponse,
   type Preferences,
+  type Role,
   type SuggestResponse,
 } from '@autobourdain/shared';
 import { zValidator } from '@hono/zod-validator';
@@ -18,6 +23,7 @@ import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 
+import { listUsers, setRole } from './admin';
 import {
   deleteAiKey,
   getAiKey,
@@ -85,22 +91,35 @@ app.on(['GET', 'POST'], '/api/auth/*', (c) => {
 app.get('/api/me', async (c) => {
   const auth = createAuth(c.env, new URL(c.req.url).origin);
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
-  return c.json<MeResponse>({ user: session?.user ?? null });
+  return c.json<MeResponse>({
+    user: session ? { ...session.user, role: parseRole(session.user.role) } : null,
+  });
 });
 
 /**
  * Turns away a request with no session, and hands the handlers after it the
- * user's id.
+ * user's id and role.
  */
-const requireUser = createMiddleware<{ Bindings: Env; Variables: { userId: string } }>(
-  async (c, next) => {
-    const auth = createAuth(c.env, new URL(c.req.url).origin);
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
-    if (!session) return c.json({ error: 'Unauthorized' }, 401);
-    c.set('userId', session.user.id);
-    await next();
-  },
-);
+const requireUser = createMiddleware<{
+  Bindings: Env;
+  Variables: { userId: string; role: Role };
+}>(async (c, next) => {
+  const auth = createAuth(c.env, new URL(c.req.url).origin);
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return c.json({ error: 'Unauthorized' }, 401);
+  c.set('userId', session.user.id);
+  c.set('role', parseRole(session.user.role));
+  await next();
+});
+
+/** Runs after requireUser, and turns away anyone who is not an admin. */
+const requireAdmin = createMiddleware<{
+  Bindings: Env;
+  Variables: { userId: string; role: Role };
+}>(async (c, next) => {
+  if (c.get('role') !== 'admin') return c.json<ApiErrorBody>({ error: 'Forbidden' }, 403);
+  await next();
+});
 
 app.get('/api/preferences', requireUser, async (c) =>
   c.json<Preferences>(await readPreferences(c.env, c.get('userId'))),
@@ -202,6 +221,43 @@ app.post(
       recipePreferences,
     );
     return c.json<SuggestResponse>(response);
+  },
+);
+
+// Admin only. Every user and their role, with the ones that cannot be changed
+// marked - see src/admin.ts.
+app.get('/api/admin/users', requireUser, requireAdmin, async (c) =>
+  c.json<AdminUsersResponse>({ users: await listUsers(c.env, c.get('userId')) }),
+);
+
+app.patch(
+  '/api/admin/users/:id',
+  requireUser,
+  requireAdmin,
+  zValidator('json', roleUpdateSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid role' }, 400);
+  }),
+  async (c) => {
+    const result = await setRole(
+      c.env,
+      c.get('userId'),
+      c.req.param('id'),
+      c.req.valid('json').role,
+    );
+    if (result.status === 'not_found') return c.json<ApiErrorBody>({ error: 'No such user' }, 404);
+    if (result.status === 'locked') {
+      return c.json<ApiErrorBody>(
+        {
+          error:
+            result.lock === 'self'
+              ? 'You cannot change your own role'
+              : 'That role is set by ADMIN_EMAILS',
+          code: 'role_locked',
+        },
+        409,
+      );
+    }
+    return c.json<AdminUser>(result.user);
   },
 );
 

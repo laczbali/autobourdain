@@ -1,4 +1,6 @@
 import type {
+  AdminUser,
+  AdminUsersResponse,
   AiKey,
   AiKeyPatch,
   AiKeyPut,
@@ -9,6 +11,7 @@ import type {
   HealthResponse,
   Preferences,
   PreferencesPatch,
+  RoleUpdate,
   SuggestRequest,
   SuggestResponse,
 } from '@autobourdain/shared';
@@ -83,3 +86,8 @@ export const testAiKey = () => apiFetch<AiKeyTestResponse>('/api/ai-key/test', {
 
 export const suggestMeals = (request: SuggestRequest) =>
   apiFetch<SuggestResponse>('/api/suggest', withJson('POST', request));
+
+export const getAdminUsers = () => apiFetch<AdminUsersResponse>('/api/admin/users');
+
+export const patchUserRole = (id: string, body: RoleUpdate) =>
+  apiFetch<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}`, withJson('PATCH', body));

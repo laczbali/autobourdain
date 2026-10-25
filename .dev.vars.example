@@ -12,6 +12,10 @@ TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
 # so locally that just means pasting your key in again.
 AI_KEY_ENCRYPTION_KEY=""
 
+# Comma-separated emails made admin on sign-up, or on their next sign-in. Put
+# your own address here to see Settings -> Admin locally.
+ADMIN_EMAILS=""
+
 # The matching always-passes test site key, for the /api/turnstile page the
 # native app loads in a WebView. Overrides wrangler.jsonc locally: the real
 # widget only accepts autobourdain.blaczko.com, not localhost or a LAN IP.

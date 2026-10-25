@@ -25,6 +25,7 @@ erDiagram
         text email UK
         integer email_verified "boolean"
         text image "nullable"
+        text role "normal, pro, admin"
         integer created_at "unix seconds"
         integer updated_at "unix seconds"
     }
@@ -98,7 +99,7 @@ Timestamps are `integer` Unix seconds, read as `Date` through Drizzle's
 
 ## Auth tables
 
-Owned by better-auth. Two rules hold for all four:
+Owned by better-auth, apart from `user.role`. Two rules hold for all four:
 
 - **Never rename a property.** The Drizzle adapter looks fields up by the
   _property_ name, not the SQL column - rename one and better-auth stops
@@ -119,6 +120,20 @@ One row per person.
 | `image`          | `image`         | text    | yes  |             | Avatar URL, from GitHub         |
 | `created_at`     | `createdAt`     | integer | no   | `unixepoch` |                                 |
 | `updated_at`     | `updatedAt`     | integer | no   | `unixepoch` |                                 |
+| `role`           | `role`          | text    | no   | `normal`    | One of `ROLES` - see below      |
+
+**`role` is ours, not better-auth's.** It is registered with better-auth as an
+additional field with `input: false` ([`../auth.ts`](../auth.ts)), so it comes
+back on the session user but no sign-up or update-user body can set it. Only
+two things change it: `PATCH /api/admin/users/:id`
+([`../admin.ts`](../admin.ts)), and the `ADMIN_EMAILS` secret, which makes a
+listed address admin on sign-up or on its next sign-in. `ADMIN_EMAILS` only
+ever grants admin - taking an address off the list demotes no one.
+
+`ROLES` lives in
+[`packages/shared/src/roles.ts`](../../../../packages/shared/src/roles.ts).
+There is no CHECK constraint: a value that is not one of them reads as
+`normal`.
 
 ### `session`
 

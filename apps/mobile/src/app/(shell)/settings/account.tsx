@@ -1,3 +1,4 @@
+import { parseRole, ROLE_LABELS } from '@autobourdain/shared';
 import { View } from 'react-native';
 
 import { SectionHeader, SettingsPage } from '@/components/settings';
@@ -21,6 +22,8 @@ export default function Account() {
           <Row label="Name" value={user.name} />
           <View className="h-px bg-rule" />
           <Row label="Email" value={user.email} />
+          <View className="h-px bg-rule" />
+          <Row label="Role" value={ROLE_LABELS[parseRole(user.role)]} />
         </Card>
       )}
 

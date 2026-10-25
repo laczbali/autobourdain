@@ -4,12 +4,14 @@ import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-lib
 import { DEFAULT_PREFERENCES } from '@autobourdain/shared';
 
 import Account from '@/app/(shell)/settings/account';
+import Users from '@/app/(shell)/settings/admin/users';
 import AiSettings from '@/app/(shell)/settings/ai';
 import Appearance from '@/app/(shell)/settings/appearance';
 import SettingsIndex from '@/app/(shell)/settings/index';
 import LikesAndDislikes from '@/app/(shell)/settings/likes-and-dislikes';
 import SettingsLayout from '@/app/(shell)/settings/_layout';
 import { measureTriggers } from '@/components/ui/select.testing';
+import { useAdminUsers, useSetRole } from '@/lib/admin';
 import {
   useAiKey,
   useAiModels,
@@ -33,6 +35,12 @@ jest.mock('@/lib/auth-client', () => ({
 jest.mock('@/lib/preferences', () => ({
   usePreferences: jest.fn(),
   useUpdatePreferences: jest.fn(),
+}));
+// useRole is the real thing, reading the faked session.
+jest.mock('@/lib/admin', () => ({
+  ...jest.requireActual('@/lib/admin'),
+  useAdminUsers: jest.fn(),
+  useSetRole: jest.fn(),
 }));
 // The hooks are faked; the error wording is the real thing.
 jest.mock('@/lib/ai', () => ({
@@ -64,6 +72,10 @@ const mockSaveKey = jest.fn();
 const mockUpdateModel = jest.fn();
 const mockDeleteKey = jest.fn();
 
+const mockUseAdminUsers = useAdminUsers as unknown as jest.Mock;
+const mockUseSetRole = useSetRole as unknown as jest.Mock;
+const mockSetRole = jest.fn();
+
 /** A mutation hook's result, idle unless told otherwise. */
 function mutation(mutate: jest.Mock, overrides: Record<string, unknown> = {}) {
   return {
@@ -79,6 +91,40 @@ function mutation(mutate: jest.Mock, overrides: Record<string, unknown> = {}) {
 }
 
 const STORED_KEY = { provider: 'anthropic', model: 'claude-newest', keyHint: 'abcd' };
+
+const SIGNED_IN = { id: 'u1', name: 'Bourdain', email: 'a@b.c' };
+
+/** Signs the faked session in with a role. */
+function signInAs(role: string) {
+  mockUseSession.mockReturnValue({ data: { user: { ...SIGNED_IN, role } }, isPending: false });
+}
+
+const USERS = [
+  {
+    id: 'u1',
+    name: 'Bourdain',
+    email: 'a@b.c',
+    role: 'admin',
+    createdAt: '2026-10-01T09:00:00.000Z',
+    locked: 'self',
+  },
+  {
+    id: 'u2',
+    name: 'Listed',
+    email: 'listed@b.c',
+    role: 'admin',
+    createdAt: '2026-10-02T09:00:00.000Z',
+    locked: 'admin_emails',
+  },
+  {
+    id: 'u3',
+    name: 'Julia',
+    email: 'julia@b.c',
+    role: 'normal',
+    createdAt: '2026-10-03T09:00:00.000Z',
+    locked: null,
+  },
+];
 
 measureTriggers();
 
@@ -101,6 +147,7 @@ async function renderSettings(initialUrl: string) {
       '(shell)/settings/appearance': Appearance,
       '(shell)/settings/ai': AiSettings,
       '(shell)/settings/account': Account,
+      '(shell)/settings/admin/users': Users,
     },
     { initialUrl },
   );
@@ -109,10 +156,7 @@ async function renderSettings(initialUrl: string) {
 }
 
 beforeEach(() => {
-  mockUseSession.mockReturnValue({
-    data: { user: { id: 'u1', name: 'Bourdain', email: 'a@b.c' } },
-    isPending: false,
-  });
+  signInAs('normal');
   mockUsePreferences.mockReturnValue({ data: DEFAULT_PREFERENCES });
   mockUseUpdatePreferences.mockReturnValue(mutation(mockMutate));
   mockUseAiKey.mockReturnValue({ data: null, isPending: false, isError: false });
@@ -132,6 +176,8 @@ beforeEach(() => {
   mockUseDeleteAiKey.mockReturnValue(mutation(mockDeleteKey));
   mockUseRefreshAiModels.mockReturnValue(mutation(jest.fn()));
   mockUseTestAiKey.mockReturnValue(mutation(mockTestKey));
+  mockUseAdminUsers.mockReturnValue({ data: { users: USERS }, isPending: false, isError: false });
+  mockUseSetRole.mockReturnValue(mutation(mockSetRole));
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -152,6 +198,22 @@ describe('settings', () => {
     ['Likes & dislikes', 'Appearance', 'AI', 'Account'].forEach((label, index) =>
       expect(within(tabs[index]).getByText(label)).toBeTruthy(),
     );
+  });
+
+  it('hides the Admin group from everyone but admins', async () => {
+    await renderSettings('/settings/appearance');
+    expect(screen.queryByText('Admin')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Users' })).toBeNull();
+  });
+
+  it('shows admins the Admin group, last', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/appearance');
+
+    expect(screen.getByText('Admin')).toBeTruthy();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(5);
+    expect(within(tabs[4]).getByText('Users')).toBeTruthy();
   });
 
   it('marks the section it is on, and moves between them', async () => {
@@ -200,12 +262,66 @@ describe('Account', () => {
     await renderSettings('/settings/account');
     expect(screen.getByText('Bourdain')).toBeTruthy();
     expect(screen.getByText('a@b.c')).toBeTruthy();
+    expect(screen.getByText('Normal')).toBeTruthy();
+  });
+
+  it('shows the role', async () => {
+    signInAs('pro');
+    await renderSettings('/settings/account');
+    expect(screen.getByText('Pro')).toBeTruthy();
   });
 
   it('signs out', async () => {
     await renderSettings('/settings/account');
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
     expect(mockSignOut).toHaveBeenCalled();
+  });
+});
+
+describe('Users', () => {
+  it('sends anyone but an admin away', async () => {
+    const { router } = await renderSettings('/settings/admin/users');
+    expect(router.getPathname()).toBe('/settings/likes-and-dislikes');
+  });
+
+  it('lists every user, with locked roles as plain text', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    expect(screen.getByText('julia@b.c')).toBeTruthy();
+    expect(screen.getByText('Joined 2026-10-03')).toBeTruthy();
+    expect(screen.getByText('You')).toBeTruthy();
+    expect(screen.getByText('Set by ADMIN_EMAILS')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Role for a@b\.c/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Role for listed@b\.c/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Role for julia@b.c: Normal' })).toBeTruthy();
+  });
+
+  it('changes a role', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Role for julia@b.c: Normal' }));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Pro' }));
+
+    expect(mockSetRole).toHaveBeenCalledWith({ id: 'u3', role: 'pro' });
+  });
+
+  it('saves nothing when the same role is picked again', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Role for julia@b.c: Normal' }));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Normal' }));
+
+    expect(mockSetRole).not.toHaveBeenCalled();
+  });
+
+  it('says so when a change did not save', async () => {
+    signInAs('admin');
+    mockUseSetRole.mockReturnValue(mutation(mockSetRole, { isError: true }));
+    await renderSettings('/settings/admin/users');
+    expect(screen.getByText(/did not save/)).toBeTruthy();
   });
 });
 

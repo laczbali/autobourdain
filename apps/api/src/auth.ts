@@ -2,6 +2,7 @@ import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { captcha } from 'better-auth/plugins';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 
 import * as schema from './db/schema';
@@ -13,6 +14,18 @@ export function trustedOrigins(env: Env): string[] {
     .map((origin) => origin.trim())
     .filter(Boolean);
   return [...configured, 'autobourdain://'];
+}
+
+/** The addresses `ADMIN_EMAILS` makes admin, lowercased. */
+export function adminEmails(env: Env): string[] {
+  return (env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isAdminEmail(env: Env, email: string): boolean {
+  return adminEmails(env).includes(email.toLowerCase());
 }
 
 /**
@@ -43,6 +56,42 @@ export function createAuth(env: Env, requestOrigin: string) {
     emailAndPassword: { enabled: true },
     socialProviders: github,
     trustedOrigins: trustedOrigins(env),
+    user: {
+      additionalFields: {
+        // `input: false` keeps it out of sign-up and update-user bodies. Only
+        // the admin routes and ADMIN_EMAILS below ever change it.
+        role: { type: 'string', required: false, defaultValue: 'normal', input: false },
+      },
+    },
+    // ADMIN_EMAILS only ever grants admin, never takes it away. A new account
+    // gets it on sign-up, an existing one on its next sign-in.
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (isAdminEmail(env, user.email)) return { data: { ...user, role: 'admin' } };
+          },
+        },
+      },
+      session: {
+        create: {
+          after: async (session) => {
+            const emails = adminEmails(env);
+            if (emails.length === 0) return;
+            await db
+              .update(schema.user)
+              .set({ role: 'admin' })
+              .where(
+                and(
+                  eq(schema.user.id, session.userId),
+                  ne(schema.user.role, 'admin'),
+                  inArray(sql`lower(${schema.user.email})`, emails),
+                ),
+              );
+          },
+        },
+      },
+    },
     // Cloudflare sits in front of every request, so its own header is the one
     // that cannot be spoofed by the client. Turnstile gets the IP from here.
     advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] } },

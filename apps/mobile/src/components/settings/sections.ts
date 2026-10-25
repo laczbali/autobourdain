@@ -9,7 +9,7 @@ import type { Href } from 'expo-router';
  * under `app/(shell)/settings` plus a line here.
  *
  * Likes & dislikes stands where `d5b` has Diet & avoid, as free text rather
- * than lists. AI is not in `d5b` at all.
+ * than lists. AI and Admin are not in `d5b` at all.
  */
 export const SETTINGS_GROUPS = [
   {
@@ -24,7 +24,14 @@ export const SETTINGS_GROUPS = [
       { href: '/settings/account', label: 'Account' },
     ],
   },
+  {
+    label: 'Admin',
+    sections: [{ href: '/settings/admin/users', label: 'Users' }],
+    adminOnly: true,
+  },
 ] as const satisfies readonly {
   label: string;
   sections: readonly { href: Href; label: string }[];
+  /** Hidden from everyone but admins. The API enforces it either way. */
+  adminOnly?: boolean;
 }[];

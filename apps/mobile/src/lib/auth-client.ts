@@ -1,4 +1,5 @@
 import { expoClient } from '@better-auth/expo/client';
+import { inferAdditionalFields } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import * as SecureStore from 'expo-secure-store';
 
@@ -14,6 +15,9 @@ export const authClient = createAuthClient({
       // Ignored on web, where the session is a normal cookie.
       storage: SecureStore,
     }),
+    // The API's own field on the user, so the session carries it typed. Read
+    // it through parseRole - the server is the one that enforces it.
+    inferAdditionalFields({ user: { role: { type: 'string', required: false, input: false } } }),
   ],
 });
 

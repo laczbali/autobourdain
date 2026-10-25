@@ -37,6 +37,8 @@ export default defineConfig({
           // test supplies its own.
           GITHUB_CLIENT_ID: '',
           GITHUB_CLIENT_SECRET: '',
+          // One made-up address, signed up only by test/admin.test.ts.
+          ADMIN_EMAILS: 'listed-admin@example.com',
         },
       },
     })),

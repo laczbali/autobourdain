@@ -3,6 +3,7 @@ import { View } from 'react-native';
 
 import { NavItem } from '@/components/shell';
 import { Eyebrow } from '@/components/ui';
+import { useRole } from '@/lib/admin';
 
 import { SETTINGS_GROUPS } from './sections';
 
@@ -14,13 +15,15 @@ import { SETTINGS_GROUPS } from './sections';
  */
 export function CategoryRail() {
   const pathname = usePathname();
+  const isAdmin = useRole() === 'admin';
+  const groups = SETTINGS_GROUPS.filter((group) => !('adminOnly' in group) || isAdmin);
 
   return (
     <View
       accessibilityRole="tablist"
       className="w-[186px] flex-none gap-5 border-r border-hairline px-4 py-5"
     >
-      {SETTINGS_GROUPS.map((group) => (
+      {groups.map((group) => (
         <View key={group.label} className="gap-1">
           <Eyebrow className="mb-1">{group.label}</Eyebrow>
           {/* Indented under their eyebrow, which is otherwise too close in

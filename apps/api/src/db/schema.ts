@@ -22,6 +22,9 @@ export const user = sqliteTable('user', {
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
+  // Ours, not better-auth's: registered with it as an additional field in
+  // src/auth.ts. One of ROLES from the shared package, checked at the API.
+  role: text('role').notNull().default('normal'),
 });
 
 export const session = sqliteTable('session', {

@@ -16,6 +16,8 @@ type Props<T extends string> = {
   /** How an option reads, when its value is not fit to show - an id, say. */
   labelFor?: (value: T) => string;
   label?: string;
+  /** What a screen reader calls the trigger, when there is no visible label. */
+  accessibilityLabel?: string;
   hint?: string;
   className?: string;
 };
@@ -38,6 +40,7 @@ export function Select<T extends string>({
   placeholder,
   labelFor = (option) => option,
   label,
+  accessibilityLabel = label,
   hint,
   className = '',
 }: Props<T>) {
@@ -64,7 +67,7 @@ export function Select<T extends string>({
       <Pressable
         ref={trigger}
         accessibilityRole="button"
-        accessibilityLabel={label ? `${label}: ${shown}` : undefined}
+        accessibilityLabel={accessibilityLabel ? `${accessibilityLabel}: ${shown}` : undefined}
         accessibilityState={{ expanded: open }}
         onPress={show}
         className={`flex-row items-center justify-between gap-3 rounded-card border bg-inset px-4 py-3 active:opacity-70 ${open ? 'border-accent' : 'border-control'}`}

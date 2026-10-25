@@ -41,6 +41,9 @@ AI, their likes & dislikes under Settings -> Preferences, and
       before the first deploy that carries this
 - [ ] Try a real ask against a real key - the tests only ever talk to a fake
       Anthropic
+- [ ] Set `ADMIN_EMAILS` as a secret in the dashboard (see Deploying) before
+      the first deploy that carries roles, then sign out and back in to pick up
+      admin
 
 **2. Followup steps**
 
@@ -50,6 +53,9 @@ AI, their likes & dislikes under Settings -> Preferences, and
 
 ### Later
 
+- [ ] Decide what the `pro` role unlocks. It is a label only for now
+- [ ] Paginate the admin Users list once it outgrows one page - it loads every
+      user at once
 - [ ] The dark palettes' `muted`, `control` and `rule` are derived, not
       designed - no dark screen was ever drawn. Confirm them against a dark
       hi-fi pass, or accept them
@@ -162,6 +168,10 @@ cp .dev.vars.example .dev.vars
 Put a random value in `BETTER_AUTH_SECRET` and in `AI_KEY_ENCRYPTION_KEY`
 (`openssl rand -base64 32` for each). `.dev.vars` is gitignored.
 
+Put your own email in `ADMIN_EMAILS` to get Settings -> Admin locally. It
+makes the listed addresses admin on sign-up, or on their next sign-in for an
+account that already exists.
+
 `AI_KEY_ENCRYPTION_KEY` encrypts the API keys users store under Settings ->
 AI. Changing it makes the stored keys unreadable, which locally just means
 pasting yours in again.
@@ -255,8 +265,8 @@ The API tests run **inside the Workers runtime**, through
 and a real local D1 with `apps/api/migrations` applied before every test file.
 They live in `apps/api/test`, and they cover health, routing, CORS, the trusted
 origin list, email sign-up and sign-in, the Turnstile gate, the conditional
-GitHub provider, preferences, the stored AI key and its model list, and
-`/api/suggest`.
+GitHub provider, preferences, the stored AI key and its model list,
+`/api/suggest`, and roles with the admin routes.
 
 Four things to know before adding more:
 
@@ -342,6 +352,12 @@ merging `develop` into it when a deploy is wanted.
      or using an AI key fails without it. Keep a copy somewhere safe - losing
      it makes every stored key unreadable, and every user has to enter theirs
      again
+   - `ADMIN_EMAILS` - comma-separated addresses to make admin, on sign-up or
+     their next sign-in. A secret only to keep them out of the repo. Meant for
+     addresses that already have an account: email sign-up does not verify the
+     address, so a listed one nobody holds yet goes to whoever registers it
+     first. It only grants admin - removing an address demotes no one, which
+     is done on the Users page instead
 4. Set `BETTER_AUTH_URL` in `wrangler.jsonc` to `https://autobourdain.blaczko.com`
    — the deployed origin — and push.
 
@@ -424,21 +440,23 @@ For store builds:
 
 ## API
 
-| Route                    | Purpose                                       |
-| ------------------------ | --------------------------------------------- |
-| `GET /api/health`        | Liveness check                                |
-| `/api/auth/*`            | better-auth: sign-up, sign-in, OAuth          |
-| `GET /api/me`            | Current user, or `null`                       |
-| `GET /api/preferences`   | The user's preferences, defaults filled in    |
-| `PATCH /api/preferences` | Change some preferences; returns them all     |
-| `GET /api/ai-key`        | The stored AI key's provider, model and hint  |
-| `PUT /api/ai-key`        | Check a key with the provider, then store it  |
-| `PATCH /api/ai-key`      | Change the model                              |
-| `DELETE /api/ai-key`     | Remove the key                                |
-| `GET /api/ai-key/models` | Models the key can use, cached for a day      |
-| `POST /api/ai-key/test`  | A tiny real request, to check key and billing |
-| `POST /api/suggest`      | Three meal suggestions from the user's model  |
-| `GET /api/turnstile`     | Turnstile widget page, for the native WebView |
+| Route                        | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `GET /api/health`            | Liveness check                                |
+| `/api/auth/*`                | better-auth: sign-up, sign-in, OAuth          |
+| `GET /api/me`                | Current user, or `null`                       |
+| `GET /api/preferences`       | The user's preferences, defaults filled in    |
+| `PATCH /api/preferences`     | Change some preferences; returns them all     |
+| `GET /api/ai-key`            | The stored AI key's provider, model and hint  |
+| `PUT /api/ai-key`            | Check a key with the provider, then store it  |
+| `PATCH /api/ai-key`          | Change the model                              |
+| `DELETE /api/ai-key`         | Remove the key                                |
+| `GET /api/ai-key/models`     | Models the key can use, cached for a day      |
+| `POST /api/ai-key/test`      | A tiny real request, to check key and billing |
+| `POST /api/suggest`          | Three meal suggestions from the user's model  |
+| `GET /api/admin/users`       | Admin only: every user and their role         |
+| `PATCH /api/admin/users/:id` | Admin only: change a user's role              |
+| `GET /api/turnstile`         | Turnstile widget page, for the native WebView |
 
 Anything not under `/api/` is served from the web build, with unknown paths
 falling back to `index.html` so client-side routes work on reload.

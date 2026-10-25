@@ -11,4 +11,7 @@ interface Env {
   // 32 random bytes, base64. Encrypts users' AI provider keys at rest - see
   // src/ai/crypto.ts. Losing it makes every stored key unreadable.
   AI_KEY_ENCRYPTION_KEY: string;
+  // Comma-separated emails that are made admin on sign-up or sign-in. A secret
+  // only to keep the addresses out of the repo.
+  ADMIN_EMAILS?: string;
 }
