@@ -52,3 +52,12 @@ export type AdminUser = {
 export type AdminUsersResponse = {
   users: AdminUser[];
 };
+
+/**
+ * Whether an admin can delete a user from the Users page. Never another admin,
+ * who has to be demoted first, and never a locked role, since a locked role
+ * cannot be demoted.
+ */
+export function canDeleteUser(user: Pick<AdminUser, 'role' | 'locked'>): boolean {
+  return user.locked === null && user.role !== 'admin';
+}

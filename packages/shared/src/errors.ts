@@ -26,6 +26,8 @@ export const API_ERROR_CODES = [
   'ai_bad_output',
   /** The role is the admin's own, or set by `ADMIN_EMAILS`. */
   'role_locked',
+  /** The user is an admin, or their role is locked - see `canDeleteUser`. */
+  'user_not_deletable',
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

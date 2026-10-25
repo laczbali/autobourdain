@@ -22,6 +22,7 @@ export const TOKENS = [
   'control', // the border of an interactive control
   'accent', // the one saturated colour: primary actions, links, emphasis
   'on-accent', // text and icons drawn on top of `accent`
+  'danger', // errors and destructive actions, kept apart from `accent`
   'text', // primary text
   'secondary', // supporting text and labels
   'muted', // tertiary text: captions, timestamps, asides

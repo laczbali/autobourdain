@@ -5,10 +5,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import app from '../src/index';
 import {
+  addAppRows,
+  del,
   envWith,
   get,
+  NO_ROWS,
   patch,
   post,
+  rowsFor,
   sessionCookie,
   signUp,
   testUser,
@@ -190,5 +194,75 @@ describe('PATCH /api/admin/users/:id', () => {
     expect((await setRole(id, { role: 'pro' }, adminCookie)).status).toBe(200);
     expect((await me(cookie))?.role).toBe('pro');
     expect((await worker.fetch(get('/api/admin/users', { cookie }))).status).toBe(403);
+  });
+});
+
+describe('DELETE /api/admin/users/:id', () => {
+  let adminCookie: string;
+  let adminId: string;
+
+  beforeAll(async () => {
+    ({ cookie: adminCookie } = await signUp());
+    adminId = await makeAdmin(adminCookie);
+  });
+
+  const deleteUser = (id: string, cookie?: string) =>
+    worker.fetch(del(`/api/admin/users/${id}`, { cookie }));
+
+  it('refuses a signed-out caller', async () => {
+    const { cookie } = await signUp();
+    const response = await deleteUser(await userIdFor(cookie));
+    expect(response.status).toBe(401);
+  });
+
+  it('refuses a user who is not an admin', async () => {
+    const { cookie } = await signUp();
+    const { cookie: otherCookie } = await signUp();
+    const id = await userIdFor(otherCookie);
+
+    expect((await deleteUser(id, cookie)).status).toBe(403);
+    expect((await rowsFor(id)).user).toBe(1);
+  });
+
+  it('answers 404 for a user who does not exist', async () => {
+    expect((await deleteUser('no-such-user', adminCookie)).status).toBe(404);
+  });
+
+  it('refuses to delete the admin themselves', async () => {
+    const response = await deleteUser(adminId, adminCookie);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: 'user_not_deletable' });
+    expect((await rowsFor(adminId)).user).toBe(1);
+  });
+
+  it('refuses to delete another admin', async () => {
+    const { cookie } = await signUp();
+    const id = await makeAdmin(cookie);
+
+    const response = await deleteUser(id, adminCookie);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: 'user_not_deletable' });
+    expect((await rowsFor(id)).user).toBe(1);
+  });
+
+  it('refuses to delete a user ADMIN_EMAILS lists', async () => {
+    const id = await userIdFor(listedCookie);
+    expect((await deleteUser(id, adminCookie)).status).toBe(409);
+    expect((await rowsFor(id)).user).toBe(1);
+  });
+
+  it('deletes a user and everything that was theirs, and signs them out', async () => {
+    const { cookie } = await signUp();
+    const id = await userIdFor(cookie);
+    await setRole(id, { role: 'pro' }, adminCookie);
+    await addAppRows(id);
+
+    const response = await deleteUser(id, adminCookie);
+
+    expect(response.status).toBe(204);
+    expect(await rowsFor(id)).toEqual(NO_ROWS);
+    expect(await me(cookie)).toBeNull();
   });
 });

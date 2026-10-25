@@ -60,8 +60,7 @@ export default function LikesAndDislikes() {
           pending={update.isPending}
         />
         {update.isError ? (
-          // The accent, for want of a danger colour - see the README's Later list.
-          <Caption tone="accent">That did not save. Try again.</Caption>
+          <Caption tone="danger">That did not save. Try again.</Caption>
         ) : (
           update.isSuccess && !changed && <Caption>Saved.</Caption>
         )}

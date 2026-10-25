@@ -114,3 +114,44 @@ export async function userIdFor(cookie: string): Promise<string> {
 export function envWith(overrides: Record<string, unknown>): Env {
   return { ...env, ...overrides } as unknown as Env;
 }
+
+/**
+ * Gives a user a row in each of the app's own tables, straight in SQL, so a
+ * delete has something to cascade to. Sign-up already made the session and
+ * the sign-in account.
+ */
+export async function addAppRows(userId: string): Promise<void> {
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO user_preferences (user_id, key, value) VALUES (?, 'mode', '"dark"')`,
+    ).bind(userId),
+    env.DB.prepare(
+      `INSERT INTO user_ai_credentials (user_id, provider, model, models, models_fetched_at)
+       VALUES (?, 'workers-ai', 'some-model', '[]', 0)`,
+    ).bind(userId),
+  ]);
+}
+
+/** How many rows each table holds for a user. */
+export async function rowsFor(userId: string): Promise<Record<string, number>> {
+  const tables = ['user', 'session', 'account', 'user_preferences', 'user_ai_credentials'];
+  const counts = await Promise.all(
+    tables.map((table) =>
+      env.DB.prepare(
+        `SELECT count(*) AS n FROM ${table} WHERE ${table === 'user' ? 'id' : 'user_id'} = ?`,
+      )
+        .bind(userId)
+        .first<{ n: number }>(),
+    ),
+  );
+  return Object.fromEntries(tables.map((table, i) => [table, counts[i]?.n ?? 0]));
+}
+
+/** What `rowsFor` answers once a user is gone. */
+export const NO_ROWS = {
+  user: 0,
+  session: 0,
+  account: 0,
+  user_preferences: 0,
+  user_ai_credentials: 0,
+};

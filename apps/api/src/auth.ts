@@ -1,6 +1,7 @@
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { APIError } from 'better-auth/api';
 import { captcha } from 'better-auth/plugins';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
@@ -61,6 +62,28 @@ export function createAuth(env: Env, requestOrigin: string) {
         // `input: false` keeps it out of sign-up and update-user bodies. Only
         // the admin routes and ADMIN_EMAILS below ever change it.
         role: { type: 'string', required: false, defaultValue: 'normal', input: false },
+      },
+      // POST /api/auth/delete-user, for the user's own account. better-auth
+      // checks the password when one is sent, and otherwise wants a session
+      // signed in within the last day. The foreign keys' cascades take the
+      // rest of the user's rows with them.
+      deleteUser: {
+        enabled: true,
+        // An admin is refused, so the last admin can never delete themselves.
+        // The role is read from the table, as the user handed in here is
+        // better-auth's base type, without it.
+        beforeDelete: async (user) => {
+          const [row] = await db
+            .select({ role: schema.user.role })
+            .from(schema.user)
+            .where(eq(schema.user.id, user.id));
+          if (row?.role === 'admin') {
+            throw new APIError('FORBIDDEN', {
+              message: 'An admin cannot delete their own account',
+              code: 'ADMIN_CANNOT_DELETE_SELF',
+            });
+          }
+        },
       },
     },
     // ADMIN_EMAILS only ever grants admin, never takes it away. A new account

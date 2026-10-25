@@ -61,8 +61,9 @@ Each one's rail entry is `disabled` in
 - [ ] The dark palettes' `muted`, `control` and `rule` are derived, not
       designed - no dark screen was ever drawn. Confirm them against a dark
       hi-fi pass, or accept them
-- [ ] No danger colour exists in the palettes - errors currently borrow the
-      accent. Decide one before the first destructive action ships
+- [ ] The `danger` colour is derived in all four palettes - no frame draws an
+      error or a destructive action. Confirm it against a hi-fi pass, or
+      accept it
 - [ ] Recipe photos - every wireframe has a dish image and we have no store for
       one yet. `imageUrl` is always null for now. Two known routes: the model
       returns a search phrase and the Worker looks it up on Unsplash or Pexels,
@@ -278,7 +279,8 @@ and a real local D1 with `apps/api/migrations` applied before every test file.
 They live in `apps/api/test`, and they cover health, routing, CORS, the trusted
 origin list, email sign-up and sign-in, the Turnstile gate, the conditional
 GitHub provider, preferences, the stored AI key and its model list, Workers AI
-and who may use it, `/api/suggest`, and roles with the admin routes.
+and who may use it, `/api/suggest`, roles with the admin routes, and deleting
+accounts, by their owner or an admin.
 
 Five things to know before adding more:
 
@@ -461,24 +463,26 @@ For store builds:
 
 ## API
 
-| Route                        | Purpose                                       |
-| ---------------------------- | --------------------------------------------- |
-| `GET /api/health`            | Liveness check                                |
-| `/api/auth/*`                | better-auth: sign-up, sign-in, OAuth          |
-| `GET /api/me`                | Current user, or `null`                       |
-| `GET /api/preferences`       | The user's preferences, defaults filled in    |
-| `PATCH /api/preferences`     | Change some preferences; returns them all     |
-| `GET /api/ai`                | The user's AI providers, and the active one   |
-| `PUT /api/ai`                | Switch provider; Workers AI is pro and admin  |
-| `PATCH /api/ai`              | Change the active provider's model            |
-| `GET /api/ai/models`         | The active provider's models, cached a day    |
-| `POST /api/ai/test`          | A tiny real request, to check key and billing |
-| `PUT /api/ai-key`            | Check a key, store it, make it active         |
-| `DELETE /api/ai-key/:p`      | Remove a provider's key                       |
-| `POST /api/suggest`          | Three meal suggestions from the active model  |
-| `GET /api/admin/users`       | Admin only: every user and their role         |
-| `PATCH /api/admin/users/:id` | Admin only: change a user's role              |
-| `GET /api/turnstile`         | Turnstile widget page, for the native WebView |
+| Route                         | Purpose                                       |
+| ----------------------------- | --------------------------------------------- |
+| `GET /api/health`             | Liveness check                                |
+| `/api/auth/*`                 | better-auth: sign-up, sign-in, OAuth          |
+| `POST /api/auth/delete-user`  | better-auth: delete your own; never an admin  |
+| `GET /api/me`                 | Current user, or `null`                       |
+| `GET /api/preferences`        | The user's preferences, defaults filled in    |
+| `PATCH /api/preferences`      | Change some preferences; returns them all     |
+| `GET /api/ai`                 | The user's AI providers, and the active one   |
+| `PUT /api/ai`                 | Switch provider; Workers AI is pro and admin  |
+| `PATCH /api/ai`               | Change the active provider's model            |
+| `GET /api/ai/models`          | The active provider's models, cached a day    |
+| `POST /api/ai/test`           | A tiny real request, to check key and billing |
+| `PUT /api/ai-key`             | Check a key, store it, make it active         |
+| `DELETE /api/ai-key/:p`       | Remove a provider's key                       |
+| `POST /api/suggest`           | Three meal suggestions from the active model  |
+| `GET /api/admin/users`        | Admin only: every user and their role         |
+| `PATCH /api/admin/users/:id`  | Admin only: change a user's role              |
+| `DELETE /api/admin/users/:id` | Admin only: delete a user who is not an admin |
+| `GET /api/turnstile`          | Turnstile widget page, for the native WebView |
 
 Anything not under `/api/` is served from the web build, with unknown paths
 falling back to `index.html` so client-side routes work on reload.

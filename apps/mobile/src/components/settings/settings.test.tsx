@@ -11,7 +11,8 @@ import SettingsIndex from '@/app/(shell)/settings/index';
 import LikesAndDislikes from '@/app/(shell)/settings/likes-and-dislikes';
 import SettingsLayout from '@/app/(shell)/settings/_layout';
 import { measureTriggers } from '@/components/ui/select.testing';
-import { useAdminUsers, useSetRole } from '@/lib/admin';
+import { DeleteAccountError, useDeleteAccount, useHasPassword } from '@/lib/account';
+import { useAdminUsers, useDeleteUser, useSetRole } from '@/lib/admin';
 import {
   useActivateAi,
   useAiModels,
@@ -42,6 +43,13 @@ jest.mock('@/lib/admin', () => ({
   ...jest.requireActual('@/lib/admin'),
   useAdminUsers: jest.fn(),
   useSetRole: jest.fn(),
+  useDeleteUser: jest.fn(),
+}));
+// The hooks are faked; the error wording is the real thing.
+jest.mock('@/lib/account', () => ({
+  ...jest.requireActual('@/lib/account'),
+  useHasPassword: jest.fn(),
+  useDeleteAccount: jest.fn(),
 }));
 // The hooks are faked; the error wording is the real thing.
 jest.mock('@/lib/ai', () => ({
@@ -79,6 +87,12 @@ const mockDeleteKey = jest.fn();
 const mockUseAdminUsers = useAdminUsers as unknown as jest.Mock;
 const mockUseSetRole = useSetRole as unknown as jest.Mock;
 const mockSetRole = jest.fn();
+const mockUseDeleteUser = useDeleteUser as unknown as jest.Mock;
+const mockDeleteUser = jest.fn();
+
+const mockUseHasPassword = useHasPassword as unknown as jest.Mock;
+const mockUseDeleteAccount = useDeleteAccount as unknown as jest.Mock;
+const mockDeleteAccount = jest.fn();
 
 /** A mutation hook's result, idle unless told otherwise. */
 function mutation(mutate: jest.Mock, overrides: Record<string, unknown> = {}) {
@@ -194,6 +208,9 @@ beforeEach(() => {
   mockUseTestAi.mockReturnValue(mutation(mockTestKey));
   mockUseAdminUsers.mockReturnValue({ data: { users: USERS }, isPending: false, isError: false });
   mockUseSetRole.mockReturnValue(mutation(mockSetRole));
+  mockUseDeleteUser.mockReturnValue(mutation(mockDeleteUser));
+  mockUseHasPassword.mockReturnValue({ data: true, isPending: false });
+  mockUseDeleteAccount.mockReturnValue(mutation(mockDeleteAccount));
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -292,6 +309,61 @@ describe('Account', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
     expect(mockSignOut).toHaveBeenCalled();
   });
+
+  it('asks for the password before deleting the account', async () => {
+    await renderSettings('/settings/account');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete for good' }));
+    expect(mockDeleteAccount).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Your password'), 'hunter2');
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete for good' }));
+    expect(mockDeleteAccount).toHaveBeenCalledWith('hunter2');
+  });
+
+  it('asks no password of an account that has none', async () => {
+    mockUseHasPassword.mockReturnValue({ data: false, isPending: false });
+    await renderSettings('/settings/account');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+    expect(screen.queryByPlaceholderText('Your password')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete for good' }));
+
+    expect(mockDeleteAccount).toHaveBeenCalledWith(undefined);
+  });
+
+  it('can keep the account after all', async () => {
+    await renderSettings('/settings/account');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep it' }));
+
+    expect(screen.getByRole('button', { name: 'Delete account' })).toBeTruthy();
+    expect(mockDeleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('says why the account was not deleted', async () => {
+    mockUseDeleteAccount.mockReturnValue(
+      mutation(mockDeleteAccount, {
+        isError: true,
+        error: new DeleteAccountError('SESSION_EXPIRED'),
+      }),
+    );
+    await renderSettings('/settings/account');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+    expect(screen.getByText(/Sign out and back in/)).toBeTruthy();
+  });
+
+  it('offers an admin no way to delete their own account', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/account');
+
+    expect(screen.queryByRole('button', { name: 'Delete account' })).toBeNull();
+    expect(screen.getByText(/An admin cannot delete their own account/)).toBeTruthy();
+    expect(screen.queryByText(/Your account and everything in it/)).toBeNull();
+  });
 });
 
 describe('Users', () => {
@@ -331,6 +403,44 @@ describe('Users', () => {
     await fireEvent.press(screen.getByRole('menuitem', { name: 'Normal' }));
 
     expect(mockSetRole).not.toHaveBeenCalled();
+  });
+
+  it('offers to delete only users who are not admins', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    expect(screen.getByRole('button', { name: 'Delete julia@b.c' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Delete a@b.c' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete listed@b.c' })).toBeNull();
+  });
+
+  it('asks before deleting a user', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete julia@b.c' }));
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete user' }));
+    expect(mockDeleteUser).toHaveBeenCalledWith('u3', expect.anything());
+  });
+
+  it('can keep the user after all', async () => {
+    signInAs('admin');
+    await renderSettings('/settings/admin/users');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete julia@b.c' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep' }));
+
+    expect(screen.queryByRole('button', { name: 'Delete user' })).toBeNull();
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('says so when a user was not deleted', async () => {
+    signInAs('admin');
+    mockUseDeleteUser.mockReturnValue(mutation(mockDeleteUser, { isError: true }));
+    await renderSettings('/settings/admin/users');
+    expect(screen.getByText(/was not deleted/)).toBeTruthy();
   });
 
   it('says so when a change did not save', async () => {

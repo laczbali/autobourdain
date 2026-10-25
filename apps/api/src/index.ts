@@ -27,7 +27,7 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
-import { listUsers, setRole } from './admin';
+import { deleteUser, listUsers, setRole } from './admin';
 import {
   activateProvider,
   deleteAiKey,
@@ -300,6 +300,23 @@ app.patch(
     return c.json<AdminUser>(result.user);
   },
 );
+
+// Deletes a user who is neither an admin nor locked - see canDeleteUser.
+// Their own account page goes through better-auth's /delete-user instead.
+app.delete('/api/admin/users/:id', requireUser, requireAdmin, async (c) => {
+  const result = await deleteUser(c.env, c.get('userId'), c.req.param('id'));
+  if (result.status === 'not_found') return c.json<ApiErrorBody>({ error: 'No such user' }, 404);
+  if (result.status === 'refused') {
+    return c.json<ApiErrorBody>(
+      {
+        error: 'Only a user who is not an admin, and whose role can be changed, can be deleted',
+        code: 'user_not_deletable',
+      },
+      409,
+    );
+  }
+  return c.body(null, 204);
+});
 
 // The Turnstile widget as a page, for the native app to load in a WebView -
 // see apps/api/src/turnstile-page.ts. Public and GET-only: the site key it

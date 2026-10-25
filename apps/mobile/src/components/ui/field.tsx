@@ -24,10 +24,10 @@ export function Field({ label, error, hint, className = '', inputClassName = '',
       <TextInput
         // The placeholder is not a className either - RN styles it by prop.
         placeholderTextColor={palette.muted}
-        className={`rounded-card border bg-inset px-4 py-3 text-text ${typeScale.body} ${error ? 'border-accent' : 'border-control'} ${inputClassName}`}
+        className={`rounded-card border bg-inset px-4 py-3 text-text ${typeScale.body} ${error ? 'border-danger' : 'border-control'} ${inputClassName}`}
         {...rest}
       />
-      {(error ?? hint) && <Caption tone={error ? 'accent' : 'muted'}>{error ?? hint}</Caption>}
+      {(error ?? hint) && <Caption tone={error ? 'danger' : 'muted'}>{error ?? hint}</Caption>}
     </View>
   );
 }

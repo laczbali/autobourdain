@@ -1,4 +1,10 @@
-import { parseRole, type AdminUser, type Role, type RoleLock } from '@autobourdain/shared';
+import {
+  canDeleteUser,
+  parseRole,
+  type AdminUser,
+  type Role,
+  type RoleLock,
+} from '@autobourdain/shared';
 import { asc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 
@@ -74,4 +80,29 @@ export async function setRole(
       locked: null,
     },
   };
+}
+
+export type DeleteUserResult = { status: 'ok' } | { status: 'not_found' } | { status: 'refused' };
+
+/**
+ * Deletes a user and, through the foreign keys' cascades, everything that
+ * hangs off them: sessions, sign-in accounts, preferences and AI keys.
+ */
+export async function deleteUser(
+  env: Env,
+  viewerId: string,
+  userId: string,
+): Promise<DeleteUserResult> {
+  const db = drizzle(env.DB);
+  const [row] = await db
+    .select({ id: user.id, email: user.email, role: user.role })
+    .from(user)
+    .where(eq(user.id, userId));
+  if (!row) return { status: 'not_found' };
+
+  const target = { role: parseRole(row.role), locked: lockFor(env, viewerId, row) };
+  if (!canDeleteUser(target)) return { status: 'refused' };
+
+  await db.delete(user).where(eq(user.id, userId));
+  return { status: 'ok' };
 }

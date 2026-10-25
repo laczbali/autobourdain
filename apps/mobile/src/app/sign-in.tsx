@@ -99,7 +99,7 @@ export default function SignIn() {
 
         {/* One line for the lot: a failure here can belong to any of the three
             fields or to the captcha, so it does not hang off one of them. */}
-        {error && <Body tone="accent">{error}</Body>}
+        {error && <Body tone="danger">{error}</Body>}
 
         <Button
           title={mode === 'sign-in' ? 'Sign in' : 'Sign up'}

@@ -55,10 +55,7 @@ export default function Appearance() {
         </View>
       </View>
 
-      {update.isError && (
-        // The accent, for want of a danger colour - see the README's Later list.
-        <Caption tone="accent">That change did not save. Try again.</Caption>
-      )}
+      {update.isError && <Caption tone="danger">That change did not save. Try again.</Caption>}
     </SettingsPage>
   );
 }

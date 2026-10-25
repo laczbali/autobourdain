@@ -75,7 +75,6 @@ export default function Today() {
   const results = suggest.isPending ? (
     <SuggestionCardsPending count={SUGGESTION_COUNT} stacked={stacked} />
   ) : suggest.isError ? (
-    // The accent, for want of a danger colour - see the README's Later list.
     <AiNotice
       {...(aiErrorMessage(suggest.error, active?.provider) ?? {
         message: 'Those suggestions did not come through. Try again.',

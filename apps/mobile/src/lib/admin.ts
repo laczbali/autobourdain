@@ -1,7 +1,7 @@
 import { parseRole, type AdminUsersResponse, type Role } from '@autobourdain/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getAdminUsers, patchUserRole } from './api';
+import { deleteAdminUser, getAdminUsers, patchUserRole } from './api';
 import { useSession } from './auth-client';
 
 /** The signed-in user's role, `normal` while there is no session. */
@@ -43,6 +43,21 @@ export function useSetRole() {
               users: current.users.map((user) => (user.id === updated.id ? updated : user)),
             }
           : current,
+      ),
+  });
+}
+
+/** Deletes a user, and takes them out of the list. */
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const key = adminUsersKey(session?.user.id);
+
+  return useMutation({
+    mutationFn: (id: string) => deleteAdminUser(id),
+    onSuccess: (_, id) =>
+      queryClient.setQueryData<AdminUsersResponse>(key, (current) =>
+        current ? { users: current.users.filter((user) => user.id !== id) } : current,
       ),
   });
 }

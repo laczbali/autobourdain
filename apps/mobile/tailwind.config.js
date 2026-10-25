@@ -25,6 +25,7 @@ module.exports = {
         control: 'rgb(var(--control) / <alpha-value>)',
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'on-accent': 'rgb(var(--on-accent) / <alpha-value>)',
+        danger: 'rgb(var(--danger) / <alpha-value>)',
         text: 'rgb(var(--text) / <alpha-value>)',
         secondary: 'rgb(var(--secondary) / <alpha-value>)',
         muted: 'rgb(var(--muted) / <alpha-value>)',

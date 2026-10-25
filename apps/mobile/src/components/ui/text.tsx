@@ -2,7 +2,8 @@ import { Text as RNText, type TextProps } from 'react-native';
 
 import { typeScale } from '@/theme/tokens';
 
-export type Tone = 'text' | 'secondary' | 'muted' | 'accent' | 'on-accent' | 'in-stock' | 'to-buy';
+export type Tone =
+  'text' | 'secondary' | 'muted' | 'accent' | 'on-accent' | 'danger' | 'in-stock' | 'to-buy';
 
 // Written out rather than built from the token names, so the Tailwind compiler
 // can see every class it has to emit.
@@ -12,6 +13,7 @@ const toneClass: Record<Tone, string> = {
   muted: 'text-muted',
   accent: 'text-accent',
   'on-accent': 'text-on-accent',
+  danger: 'text-danger',
   'in-stock': 'text-in-stock',
   'to-buy': 'text-to-buy',
 };

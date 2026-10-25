@@ -7,12 +7,12 @@ type Props = {
   message: string;
   /** Whether the fix is in AI settings, so a link there belongs underneath. */
   toSettings: boolean;
-  /** The accent for a failure, quieter for a setup note. */
-  tone?: 'accent' | 'secondary';
+  /** Danger for a failure, quieter for a setup note. */
+  tone?: 'danger' | 'secondary';
 };
 
 /** A line about the AI side of an ask, with the way to AI settings when that helps. */
-export function AiNotice({ message, toSettings, tone = 'accent' }: Props) {
+export function AiNotice({ message, toSettings, tone = 'danger' }: Props) {
   return (
     <View className="gap-1">
       <Caption tone={tone}>{message}</Caption>

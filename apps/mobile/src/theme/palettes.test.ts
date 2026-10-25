@@ -44,6 +44,15 @@ describe('palettes', () => {
     }
   });
 
+  it.each(THEMES)('%s keeps danger at AA on every surface', (theme) => {
+    for (const mode of MODES) {
+      const palette = palettes[theme][mode];
+      for (const bg of ['canvas', 'raised', 'inset'] as const) {
+        expect(contrast(palette.danger, palette[bg])).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it.each(THEMES)('%s keeps on-accent legible on the accent', (theme) => {
     for (const mode of MODES) {
       const palette = palettes[theme][mode];

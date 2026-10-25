@@ -12,6 +12,10 @@ import { TOKENS, type Palette, type ResolvedMode, type ThemeName } from './token
  * since no dark screen was ever drawn and Warm ink only exists as a palette
  * card. Every derived value is marked; they are the ones to check first if a
  * dark screen looks off.
+ *
+ * `danger` is derived everywhere - no frame draws an error or a destructive
+ * action. It leans crimson, a step of hue away from each accent's orange-red,
+ * so it never reads as just another accent.
  */
 export const palettes: Record<ThemeName, Record<ResolvedMode, Palette>> = {
   'cocoa-plum': {
@@ -24,6 +28,7 @@ export const palettes: Record<ThemeName, Record<ResolvedMode, Palette>> = {
       control: '#46373c', // from the swatch border on the 2e-1 card
       accent: '#e07a52',
       'on-accent': '#1a1316', // derived: the accent is bright, so this is `canvas`
+      danger: '#ec6f86', // derived
       text: '#f5e9e4',
       secondary: '#b09a93',
       muted: '#8f7c78', // derived: `secondary` pulled toward the canvas, kept at 4.5:1
@@ -39,6 +44,7 @@ export const palettes: Record<ThemeName, Record<ResolvedMode, Palette>> = {
       control: '#cbb9af',
       accent: '#bd5227',
       'on-accent': '#ece0d9',
+      danger: '#a81e3f', // derived
       text: '#2a1d20',
       secondary: '#6f5b53',
       muted: '#80695f',
@@ -56,6 +62,7 @@ export const palettes: Record<ThemeName, Record<ResolvedMode, Palette>> = {
       control: '#463830', // derived: one step up from `hairline`
       accent: '#e2543f',
       'on-accent': '#181311', // derived: the accent is bright, so this is `canvas`
+      danger: '#ee7096', // derived
       text: '#f3e8e0',
       secondary: '#ab968c',
       muted: '#8e7c73', // derived: `secondary` pulled toward the canvas, kept at 4.5:1
@@ -71,6 +78,7 @@ export const palettes: Record<ThemeName, Record<ResolvedMode, Palette>> = {
       control: '#c8b9b0', // derived: one step down from `hairline`
       accent: '#c2381f',
       'on-accent': '#eae1db', // derived: `inset`, matching what 2e does with the accent
+      danger: '#9c1745', // derived
       text: '#221a17',
       secondary: '#6b5a52',
       muted: '#7c685e', // derived: `secondary` lightened, as 2e does for Cocoa plum

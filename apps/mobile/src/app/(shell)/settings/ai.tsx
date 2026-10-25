@@ -85,7 +85,7 @@ export default function AiSettings() {
           <ActivityIndicator color={palette.accent} />
         </View>
       ) : settings.isError ? (
-        <Caption tone="accent">The AI settings did not load. Try again later.</Caption>
+        <Caption tone="danger">The AI settings did not load. Try again later.</Caption>
       ) : (
         <>
           <Card className="gap-3">
@@ -101,7 +101,7 @@ export default function AiSettings() {
               ))}
             </View>
             {activate.isError && (
-              <Caption tone="accent">
+              <Caption tone="danger">
                 {aiErrorMessage(activate.error, activate.variables?.provider)?.message ??
                   'That did not switch. Try again.'}
               </Caption>
@@ -247,10 +247,7 @@ function KeyCard({ provider, stored }: { provider: KeyedAiProvider; stored: AiCo
         </View>
       )}
 
-      {remove.isError && (
-        // The accent, for want of a danger colour - see the README's Later list.
-        <Caption tone="accent">The key was not removed. Try again.</Caption>
-      )}
+      {remove.isError && <Caption tone="danger">The key was not removed. Try again.</Caption>}
     </Card>
   );
 }
@@ -306,9 +303,9 @@ function ModelCard({ connection }: { connection: AiConnection }) {
         <Caption>{`The ${name} models picked for this app.`}</Caption>
       )}
 
-      {update.isError && <Caption tone="accent">That change did not save. Try again.</Caption>}
+      {update.isError && <Caption tone="danger">That change did not save. Try again.</Caption>}
       {failure && (
-        <Caption tone="accent">
+        <Caption tone="danger">
           {aiErrorMessage(failure, connection.provider)?.message ??
             'The model list did not load. Try again.'}
         </Caption>
@@ -345,7 +342,7 @@ function ConnectionCard({ connection }: { connection: AiConnection }) {
 
       {test.isSuccess && <Caption tone="secondary">It works - the model answered.</Caption>}
       {test.isError && (
-        <Caption tone="accent">
+        <Caption tone="danger">
           {aiErrorMessage(test.error, connection.provider)?.message ??
             'The test did not go through. Try again.'}
         </Caption>

@@ -97,3 +97,6 @@ export const getAdminUsers = () => apiFetch<AdminUsersResponse>('/api/admin/user
 
 export const patchUserRole = (id: string, body: RoleUpdate) =>
   apiFetch<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}`, withJson('PATCH', body));
+
+export const deleteAdminUser = (id: string) =>
+  apiFetch<void>(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
