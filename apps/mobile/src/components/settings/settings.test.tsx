@@ -16,6 +16,7 @@ import {
   useDeleteAiKey,
   useRefreshAiModels,
   useSaveAiKey,
+  useTestAiKey,
   useUpdateAiModel,
 } from '@/lib/ai';
 import { ApiError } from '@/lib/api-error';
@@ -42,6 +43,7 @@ jest.mock('@/lib/ai', () => ({
   useUpdateAiModel: jest.fn(),
   useDeleteAiKey: jest.fn(),
   useRefreshAiModels: jest.fn(),
+  useTestAiKey: jest.fn(),
 }));
 
 const mockUseSession = useSession as unknown as jest.Mock;
@@ -56,6 +58,8 @@ const mockUseSaveAiKey = useSaveAiKey as unknown as jest.Mock;
 const mockUseUpdateAiModel = useUpdateAiModel as unknown as jest.Mock;
 const mockUseDeleteAiKey = useDeleteAiKey as unknown as jest.Mock;
 const mockUseRefreshAiModels = useRefreshAiModels as unknown as jest.Mock;
+const mockUseTestAiKey = useTestAiKey as unknown as jest.Mock;
+const mockTestKey = jest.fn();
 const mockSaveKey = jest.fn();
 const mockUpdateModel = jest.fn();
 const mockDeleteKey = jest.fn();
@@ -127,6 +131,7 @@ beforeEach(() => {
   mockUseUpdateAiModel.mockReturnValue(mutation(mockUpdateModel));
   mockUseDeleteAiKey.mockReturnValue(mutation(mockDeleteKey));
   mockUseRefreshAiModels.mockReturnValue(mutation(jest.fn()));
+  mockUseTestAiKey.mockReturnValue(mutation(mockTestKey));
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -318,6 +323,41 @@ describe('AI', () => {
 
     expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
     expect(mockDeleteKey).not.toHaveBeenCalled();
+  });
+
+  it('offers no connection test without a key', async () => {
+    await renderSettings('/settings/ai');
+    expect(screen.queryByRole('button', { name: 'Test connection' })).toBeNull();
+  });
+
+  it('tests the connection', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Test connection' }));
+
+    expect(mockTestKey).toHaveBeenCalled();
+  });
+
+  it('says so when the connection works', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    mockUseTestAiKey.mockReturnValue(mutation(mockTestKey, { isSuccess: true }));
+    await renderSettings('/settings/ai');
+
+    expect(screen.getByText('It works - the model answered.')).toBeTruthy();
+  });
+
+  it("shows the provider's reason when the connection fails", async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    mockUseTestAiKey.mockReturnValue(
+      mutation(mockTestKey, {
+        isError: true,
+        error: new ApiError(422, 'Your credit balance is too low', 'ai_rejected'),
+      }),
+    );
+    await renderSettings('/settings/ai');
+
+    expect(screen.getByText('Anthropic: Your credit balance is too low')).toBeTruthy();
   });
 
   it('replaces a stored key', async () => {

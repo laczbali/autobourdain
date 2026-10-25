@@ -4,6 +4,7 @@ import {
   preferencesPatchSchema,
   suggestRequestSchema,
   type AiKeyResponse,
+  type AiKeyTestResponse,
   type AiModelsResponse,
   type ApiErrorBody,
   type HealthResponse,
@@ -167,6 +168,17 @@ app.get('/api/ai-key/models', requireUser, async (c) => {
     models: list.models,
     fetchedAt: list.fetchedAt.toISOString(),
   });
+});
+
+// A tiny real request with the stored key and model, so a key that lists
+// models but cannot ask - no credit on the account, say - shows up in
+// settings rather than on the first ask. Failures come back as AI error codes.
+app.post('/api/ai-key/test', requireUser, async (c) => {
+  const key = await getAiKeyForUse(c.env, c.get('userId'));
+  if (!key) return c.json(NO_AI_KEY, 409);
+
+  await ADAPTERS[key.provider].ping({ apiKey: key.apiKey, model: key.model });
+  return c.json<AiKeyTestResponse>({ ok: true, model: key.model });
 });
 
 // Three meal suggestions from the user's own model, with their likes &

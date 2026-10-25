@@ -50,6 +50,13 @@ export const aiKeyPatchSchema = z.object({ model: z.string().min(1) }).strict();
 
 export type AiKeyPatch = z.infer<typeof aiKeyPatchSchema>;
 
+/** `POST /api/ai-key/test` succeeded. A failure is an error with an AI code. */
+export type AiKeyTestResponse = {
+  ok: true;
+  /** The model that answered. */
+  model: string;
+};
+
 export type AiModelsResponse = {
   models: AiModel[];
   /** When the provider was last asked, as an ISO timestamp. */

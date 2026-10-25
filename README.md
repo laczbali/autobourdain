@@ -436,6 +436,7 @@ For store builds:
 | `PATCH /api/ai-key`      | Change the model                              |
 | `DELETE /api/ai-key`     | Remove the key                                |
 | `GET /api/ai-key/models` | Models the key can use, cached for a day      |
+| `POST /api/ai-key/test`  | A tiny real request, to check key and billing |
 | `POST /api/suggest`      | Three meal suggestions from the user's model  |
 | `GET /api/turnstile`     | Turnstile widget page, for the native WebView |
 

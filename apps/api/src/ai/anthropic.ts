@@ -8,6 +8,9 @@ import type { AiProviderAdapter, GenerateRequest } from './types';
 /** Three full recipes fit comfortably. Non-streaming, so it stays modest. */
 const MAX_TOKENS = 16000;
 
+/** Enough for "OK" - the connection test pays for a handful of tokens, no more. */
+const PING_MAX_TOKENS = 16;
+
 /** Per attempt. The SDK retries rate limits, overloads and dropped connections twice. */
 const TIMEOUT_MS = 60_000;
 
@@ -36,6 +39,22 @@ export const anthropic: AiProviderAdapter = {
       throw toAiError(error);
     }
     return models;
+  },
+
+  async ping({ apiKey, model }) {
+    const api = client(apiKey);
+    try {
+      const effort = (await supportsLowEffort(api, model)) ? { effort: 'low' as const } : {};
+      // Any answer will do, cut off or not: getting one at all is the test.
+      await api.messages.create({
+        model,
+        max_tokens: PING_MAX_TOKENS,
+        messages: [{ role: 'user', content: 'Reply with OK.' }],
+        output_config: effort,
+      });
+    } catch (error) {
+      throw toAiError(error);
+    }
   },
 
   async generate<T>({ apiKey, model, system, prompt, schema }: GenerateRequest<T>) {

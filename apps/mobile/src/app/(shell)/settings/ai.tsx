@@ -16,6 +16,7 @@ import {
   useDeleteAiKey,
   useRefreshAiModels,
   useSaveAiKey,
+  useTestAiKey,
   useUpdateAiModel,
 } from '@/lib/ai';
 import { useTheme } from '@/theme/theme-provider';
@@ -70,7 +71,16 @@ export default function AiSettings() {
             stored={stored?.provider === provider ? stored : null}
           />
 
-          {stored && stored.provider === provider && <ModelCard stored={stored} />}
+          {stored && stored.provider === provider && (
+            <>
+              <ModelCard stored={stored} />
+              <ConnectionCard
+                // A result only speaks for the key and model it was run with.
+                key={`${stored.keyHint}:${stored.model}`}
+                stored={stored}
+              />
+            </>
+          )}
         </>
       )}
     </SettingsPage>
@@ -239,6 +249,41 @@ function ModelCard({ stored }: { stored: AiKey }) {
         <Caption tone="accent">
           {aiErrorMessage(failure, stored.provider)?.message ??
             'The model list did not load. Try again.'}
+        </Caption>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Sends the smallest real request with the stored key and model. Saving a key
+ * only lists models, which works even on an account that cannot pay for an
+ * ask - this is what catches that.
+ */
+function ConnectionCard({ stored }: { stored: AiKey }) {
+  const test = useTestAiKey();
+  const name = AI_PROVIDER_LABELS[stored.provider];
+
+  return (
+    <Card className="gap-3">
+      <View className="flex-row items-center gap-3">
+        <Caption className="flex-1">
+          {`Sends ${name} a tiny request with your key and model. Costs a few tokens.`}
+        </Caption>
+        <Button
+          title="Test connection"
+          variant="secondary"
+          size="sm"
+          pending={test.isPending}
+          onPress={() => test.mutate()}
+        />
+      </View>
+
+      {test.isSuccess && <Caption tone="secondary">It works - the model answered.</Caption>}
+      {test.isError && (
+        <Caption tone="accent">
+          {aiErrorMessage(test.error, stored.provider)?.message ??
+            'The test did not go through. Try again.'}
         </Caption>
       )}
     </Card>

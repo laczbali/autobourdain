@@ -1,7 +1,7 @@
 import { AI_PROVIDER_LABELS, type AiKeyResponse, type AiProvider } from '@autobourdain/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deleteAiKey, getAiKey, getAiModels, patchAiKey, putAiKey } from './api';
+import { deleteAiKey, getAiKey, getAiModels, patchAiKey, putAiKey, testAiKey } from './api';
 import { errorCode } from './api-error';
 import { useSession } from './auth-client';
 
@@ -99,6 +99,11 @@ export function useRefreshAiModels() {
       await cache.refetchKey();
     },
   });
+}
+
+/** A tiny real request with the stored key and model. Changes nothing stored. */
+export function useTestAiKey() {
+  return useMutation({ mutationFn: testAiKey });
 }
 
 /**

@@ -2,8 +2,8 @@ import type { AiKeyResponse, ApiErrorBody } from '@autobourdain/shared';
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 
-import { fakeAnthropic, VALID_KEY } from './fake-anthropic';
-import { del, get, patch, put, signUp, userIdFor, worker } from './helpers';
+import { errorResponse, fakeAnthropic, messageResponse, VALID_KEY } from './fake-anthropic';
+import { del, get, patch, post, put, signUp, userIdFor, worker } from './helpers';
 
 async function storeKey(cookie: string, body: Record<string, unknown> = {}) {
   return worker.fetch(
@@ -214,5 +214,65 @@ describe('/api/ai-key', () => {
     const response = await worker.fetch(get('/api/ai-key', { cookie: second.cookie }));
 
     await expect(response.json()).resolves.toBeNull();
+  });
+});
+
+describe('POST /api/ai-key/test', () => {
+  type Sent = { model: string; max_tokens: number };
+
+  it('turns away a signed-out test', async () => {
+    const response = await worker.fetch(post('/api/ai-key/test', {}));
+    expect(response.status).toBe(401);
+  });
+
+  it('has nothing to test without a key', async () => {
+    const { cookie } = await signUp();
+
+    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({ code: 'no_ai_key' });
+  });
+
+  it('sends a tiny request to the chosen model', async () => {
+    const calls = fakeAnthropic({ replies: ['OK'] });
+    const { cookie } = await signUp();
+    await storeKey(cookie, { model: 'claude-test-older' });
+
+    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true, model: 'claude-test-older' });
+    const sent = calls.find(({ path }) => path === '/v1/messages')?.body as Sent;
+    expect(sent.model).toBe('claude-test-older');
+    expect(sent.max_tokens).toBeLessThanOrEqual(16);
+  });
+
+  it('passes when the answer is cut off, since one came at all', async () => {
+    fakeAnthropic({ replies: [() => messageResponse('O', 'max_tokens')] });
+    const { cookie } = await signUp();
+    await storeKey(cookie);
+
+    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+
+    expect(response.status).toBe(200);
+  });
+
+  it('catches an account the provider will not serve', async () => {
+    fakeAnthropic({
+      replies: [
+        () => errorResponse(400, 'invalid_request_error', 'Your credit balance is too low'),
+      ],
+    });
+    const { cookie } = await signUp();
+    await storeKey(cookie);
+
+    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Your credit balance is too low',
+      code: 'ai_rejected',
+    });
   });
 });

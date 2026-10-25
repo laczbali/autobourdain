@@ -3,6 +3,7 @@ import type {
   AiKeyPatch,
   AiKeyPut,
   AiKeyResponse,
+  AiKeyTestResponse,
   AiModelsResponse,
   ApiErrorBody,
   HealthResponse,
@@ -77,6 +78,8 @@ export const deleteAiKey = () => apiFetch<void>('/api/ai-key', { method: 'DELETE
 /** The cached list, unless `refresh` asks the provider again. */
 export const getAiModels = (refresh = false) =>
   apiFetch<AiModelsResponse>(`/api/ai-key/models${refresh ? '?refresh=true' : ''}`);
+
+export const testAiKey = () => apiFetch<AiKeyTestResponse>('/api/ai-key/test', { method: 'POST' });
 
 export const suggestMeals = (request: SuggestRequest) =>
   apiFetch<SuggestResponse>('/api/suggest', withJson('POST', request));

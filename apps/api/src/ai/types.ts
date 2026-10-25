@@ -16,7 +16,7 @@ export type GenerateRequest<T> = {
  * One provider. Adding a provider is one of these plus an entry in
  * `registry.ts` - nothing else in the API changes.
  *
- * Both methods throw `AiError`, never the provider SDK's own errors.
+ * Every method throws `AiError`, never the provider SDK's own errors.
  */
 export interface AiProviderAdapter {
   /**
@@ -25,6 +25,12 @@ export interface AiProviderAdapter {
    * `key_invalid`.
    */
   listModels(apiKey: string): Promise<AiModel[]>;
+  /**
+   * The smallest real request the model will take. Listing models can pass
+   * while asking fails - an account without credit, say - so this is the
+   * check that the key, its billing and the model all work together.
+   */
+  ping(request: { apiKey: string; model: string }): Promise<void>;
   /** One structured answer, already parsed against the schema. */
   generate<T>(request: GenerateRequest<T>): Promise<T>;
 }
