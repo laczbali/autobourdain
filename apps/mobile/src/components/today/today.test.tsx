@@ -5,18 +5,22 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import Today from '@/app/(shell)/index';
 import { useStacked } from '@/components/today/layout';
 import { measureTriggers } from '@/components/ui/select.testing';
+import { useAiKey } from '@/lib/ai';
 import { suggestMeals } from '@/lib/api';
+import { ApiError } from '@/lib/api-error';
 import { ThemeProvider } from '@/theme/theme-provider';
 
-// The screen is tested against what it asks for and what comes back, not the
-// mock's delay and randomness. The shell barrel pulls in the auth client,
-// which wants no better-auth here either.
+// The screen is tested against what it asks for and what comes back. The
+// shell barrel pulls in the auth client, which wants no better-auth here either.
 jest.mock('@/lib/api', () => ({ suggestMeals: jest.fn() }));
 jest.mock('@/lib/auth-client', () => ({ useSession: jest.fn() }));
+// The key query is faked; the error wording is the real thing.
+jest.mock('@/lib/ai', () => ({ ...jest.requireActual('@/lib/ai'), useAiKey: jest.fn() }));
 // Every case runs in both layouts, rather than at whatever width jest reports.
 jest.mock('@/components/today/layout', () => ({ useStacked: jest.fn() }));
 
 const mockSuggestMeals = suggestMeals as jest.Mock;
+const mockUseAiKey = useAiKey as jest.Mock;
 const mockUseStacked = useStacked as jest.Mock;
 
 measureTriggers();
@@ -74,6 +78,9 @@ async function askFor(mealType: string, ask = '') {
 
 beforeEach(() => {
   mockSuggestMeals.mockResolvedValue({ suggestions: SUGGESTIONS });
+  mockUseAiKey.mockReturnValue({
+    data: { provider: 'anthropic', model: 'claude-newest', keyHint: 'abcd' },
+  });
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -122,6 +129,49 @@ describe.each([
     expect(
       await screen.findByText('Those suggestions did not come through. Try again.'),
     ).toBeTruthy();
+  });
+
+  it('asks for an API key before anything else, and asks nothing without one', async () => {
+    mockUseAiKey.mockReturnValue({ data: null });
+    await renderToday();
+    await askFor('Dinner');
+
+    expect(screen.getByText('Add an API key to get suggestions.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open AI settings' })).toBeTruthy();
+    expect(mockSuggestMeals).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for a key while it is still loading', async () => {
+    mockUseAiKey.mockReturnValue({ data: undefined });
+    await renderToday();
+
+    expect(screen.queryByText('Add an API key to get suggestions.')).toBeNull();
+  });
+
+  it.each([
+    ['no_ai_key', 'Add an API key to get suggestions.', true],
+    ['ai_key_invalid', 'Anthropic did not accept the API key.', true],
+    ['ai_model_unavailable', 'The chosen model is not available any more.', true],
+    ['ai_rate_limited', 'Anthropic is limiting requests. Wait a moment.', false],
+    ['ai_unavailable', 'Could not reach Anthropic. Try again.', false],
+    ['ai_refused', 'The model declined that ask. Try putting it another way.', false],
+  ] as const)('explains a %s failure', async (code, message, toSettings) => {
+    mockSuggestMeals.mockRejectedValue(new ApiError(422, 'from the server', code));
+    await renderToday();
+    await askFor('Dinner');
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Open AI settings' }) !== null).toBe(toSettings);
+  });
+
+  it("passes on the provider's own reason", async () => {
+    mockSuggestMeals.mockRejectedValue(
+      new ApiError(422, 'Your credit balance is too low', 'ai_rejected'),
+    );
+    await renderToday();
+    await askFor('Dinner');
+
+    expect(await screen.findByText('Anthropic: Your credit balance is too low')).toBeTruthy();
   });
 
   it('shows the method of the chosen one beside its ingredients', async () => {

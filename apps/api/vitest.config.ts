@@ -30,6 +30,9 @@ export default defineConfig({
           // Overridden rather than taken from wrangler.jsonc so rotating the
           // real widget cannot break a test.
           TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+          // 32 zero bytes - fine for a test, and fixed so a run never depends on
+          // a developer's own .dev.vars.
+          AI_KEY_ENCRYPTION_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
           // Unset, so GitHub is not registered by default. The social provider
           // test supplies its own.
           GITHUB_CLIENT_ID: '',

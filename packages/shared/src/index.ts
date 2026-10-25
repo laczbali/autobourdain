@@ -5,6 +5,8 @@
  * agree on what a valid request looks like.
  */
 
+export * from './ai';
+export * from './errors';
 export * from './preferences';
 export * from './suggest';
 

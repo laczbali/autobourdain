@@ -17,6 +17,7 @@ erDiagram
     user ||--o{ session : "has"
     user ||--o{ account : "signs in with"
     user ||--o{ user_preferences : "sets"
+    user ||--o| user_ai_credentials : "stores"
 
     user {
         text id PK
@@ -66,8 +67,20 @@ erDiagram
 
     user_preferences {
         text user_id PK, FK
-        text key PK "theme, mode"
+        text key PK "theme, mode, recipePreferences"
         text value "JSON"
+        integer created_at "unix seconds"
+        integer updated_at "unix seconds"
+    }
+
+    user_ai_credentials {
+        text user_id PK, FK
+        text provider "anthropic"
+        text model
+        text encrypted_key "v1.iv.ciphertext"
+        text key_hint "last 4 characters"
+        text models "JSON"
+        integer models_fetched_at "unix seconds"
         integer created_at "unix seconds"
         integer updated_at "unix seconds"
     }
@@ -193,10 +206,48 @@ stands in for it.
 
 Current keys:
 
-| Key     | Value                         | Default      |
-| ------- | ----------------------------- | ------------ |
-| `theme` | `cocoa-plum` \| `warm-ink`    | `cocoa-plum` |
-| `mode`  | `light` \| `dark` \| `system` | `system`     |
+| Key                 | Value                              | Default      |
+| ------------------- | ---------------------------------- | ------------ |
+| `theme`             | `cocoa-plum` \| `warm-ink`         | `cocoa-plum` |
+| `mode`              | `light` \| `dark` \| `system`      | `system`     |
+| `recipePreferences` | Likes & dislikes, up to 2000 chars | `''`         |
+
+`recipePreferences` is free text in the user's words, added to every
+`/api/suggest` prompt after the app's own instructions.
+
+### `user_ai_credentials`
+
+A user's AI provider key, at most one per user - storing a new key replaces
+the old one. Read and written by `/api/ai-key` and used by `/api/suggest`
+([`../ai/credentials.ts`](../ai/credentials.ts)).
+
+| Column              | Property          | Type    | Null | Default     | Meaning                                 |
+| ------------------- | ----------------- | ------- | ---- | ----------- | --------------------------------------- |
+| `user_id`           | `userId`          | text    | no   |             | Primary key, `user.id`, cascade         |
+| `provider`          | `provider`        | text    | no   |             | One of `AI_PROVIDERS`, e.g. `anthropic` |
+| `model`             | `model`           | text    | no   |             | The chosen model's id                   |
+| `encrypted_key`     | `encryptedKey`    | text    | no   |             | The key, encrypted - see below          |
+| `key_hint`          | `keyHint`         | text    | no   |             | The key's last 4 characters             |
+| `models`            | `models`          | text    | no   |             | JSON `[{ id, label }]`, cached          |
+| `models_fetched_at` | `modelsFetchedAt` | integer | no   |             | When `models` was fetched               |
+| `created_at`        | `createdAt`       | integer | no   | `unixepoch` |                                         |
+| `updated_at`        | `updatedAt`       | integer | no   | `unixepoch` | Set on every change                     |
+
+**The key never leaves the Worker.** It is encrypted with AES-256-GCM under
+the `AI_KEY_ENCRYPTION_KEY` secret, with the user's id bound in, so a
+ciphertext copied to another row does not decrypt
+([`../ai/crypto.ts`](../ai/crypto.ts)). Reads return the provider, model and
+`key_hint` only. Losing the secret makes every stored key unreadable.
+
+**The model list is a cache.** It is what the provider listed for this key,
+filtered to models that can return structured output. It is served for 24
+hours, then fetched again with the key; a provider that cannot be reached gets
+the stale list served instead. Nothing is hardcoded: when the chosen model
+drops off a fresh list, the first listed model replaces it.
+
+**Zod is the only gate**, as for preferences. A row whose provider has since
+been removed reads as no key, and a `models` value that does not parse counts
+as never fetched.
 
 ## Changing the schema
 

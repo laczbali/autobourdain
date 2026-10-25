@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Button, Heading, Select } from '@/components/ui';
@@ -14,6 +15,8 @@ type Props = {
   onMealTypeChange: (mealType: MealType) => void;
   onSuggest: () => void;
   pending: boolean;
+  /** Why asking is not possible yet - no API key, say. Disables the button. */
+  blocked?: ReactNode;
   /** Full width across the top of the page, rather than a column beside it. */
   stacked: boolean;
 };
@@ -33,6 +36,7 @@ export function AskPanel({
   onMealTypeChange,
   onSuggest,
   pending,
+  blocked,
   stacked,
 }: Props) {
   const { palette } = useTheme();
@@ -70,8 +74,15 @@ export function AskPanel({
 
       {/* Full width in the 300px column, its own width stacked. */}
       <View className={stacked ? 'self-start pt-1' : 'pt-1'}>
-        <Button title="Suggest a meal" onPress={onSuggest} pending={pending} disabled={!mealType} />
+        <Button
+          title="Suggest a meal"
+          onPress={onSuggest}
+          pending={pending}
+          disabled={!mealType || Boolean(blocked)}
+        />
       </View>
+
+      {blocked}
     </>
   );
 

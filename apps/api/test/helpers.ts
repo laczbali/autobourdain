@@ -1,3 +1,4 @@
+import type { MeResponse } from '@autobourdain/shared';
 import { env, exports } from 'cloudflare:workers';
 
 /**
@@ -70,6 +71,14 @@ export function patch(path: string, body: unknown, options: RequestOptions = {})
   return withJson('PATCH', path, body, options);
 }
 
+export function put(path: string, body: unknown, options: RequestOptions = {}): Request {
+  return withJson('PUT', path, body, options);
+}
+
+export function del(path: string, options: RequestOptions = {}): Request {
+  return new Request(`http://localhost${path}`, { method: 'DELETE', headers: headersFor(options) });
+}
+
 /** Every Set-Cookie the response carries, folded into one Cookie header value. */
 export function sessionCookie(response: Response): string {
   return response.headers
@@ -87,6 +96,14 @@ export async function signUp(
     throw new Error(`sign-up failed: ${response.status} ${await response.text()}`);
   }
   return { user, cookie: sessionCookie(response) };
+}
+
+/** The id of the user a session cookie belongs to. */
+export async function userIdFor(cookie: string): Promise<string> {
+  const response = await worker.fetch(get('/api/me', { cookie }));
+  const { user } = await response.json<MeResponse>();
+  if (!user) throw new Error('no user behind that cookie');
+  return user.id;
 }
 
 /**

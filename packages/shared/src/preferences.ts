@@ -8,6 +8,9 @@ export type ThemeName = (typeof THEMES)[number];
 export const MODES = ['light', 'dark', 'system'] as const;
 export type Mode = (typeof MODES)[number];
 
+/** How long the likes & dislikes text may be, in characters. */
+export const RECIPE_PREFERENCES_MAX = 2000;
+
 /**
  * Every preference a user can store, and what each one may hold.
  *
@@ -19,6 +22,11 @@ export type Mode = (typeof MODES)[number];
 export const preferencesSchema = z.object({
   theme: z.enum(THEMES),
   mode: z.enum(MODES),
+  /**
+   * Likes & dislikes, in the user's own words. Added to every suggest prompt,
+   * after the app's own instructions.
+   */
+  recipePreferences: z.string().trim().max(RECIPE_PREFERENCES_MAX),
 });
 
 export type Preferences = z.infer<typeof preferencesSchema>;
@@ -28,6 +36,7 @@ export type PreferenceKey = keyof Preferences;
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'cocoa-plum',
   mode: 'system',
+  recipePreferences: '',
 };
 
 /**

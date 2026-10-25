@@ -23,13 +23,17 @@ export function CategoryRail() {
       {SETTINGS_GROUPS.map((group) => (
         <View key={group.label} className="gap-1">
           <Eyebrow className="mb-1">{group.label}</Eyebrow>
-          {group.sections.map((section) => (
-            // `role` is spelled out because Link hands down `role="link"`,
-            // which outranks NavItem's accessibilityRole - a link in a tablist.
-            <Link key={section.href} href={section.href} asChild>
-              <NavItem role="tab" label={section.label} isFocused={pathname === section.href} />
-            </Link>
-          ))}
+          {/* Indented under their eyebrow, which is otherwise too close in
+              size and tone to tell from a section. */}
+          <View className="gap-1 pl-3">
+            {group.sections.map((section) => (
+              // `role` is spelled out because Link hands down `role="link"`,
+              // which outranks NavItem's accessibilityRole - a link in a tablist.
+              <Link key={section.href} href={section.href} asChild>
+                <NavItem role="tab" label={section.label} isFocused={pathname === section.href} />
+              </Link>
+            ))}
+          </View>
         </View>
       ))}
     </View>

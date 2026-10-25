@@ -4,6 +4,7 @@ import { ScrollView, View } from 'react-native';
 
 import { Page } from '@/components/shell';
 import {
+  AiNotice,
   AskPanel,
   SuggestionCard,
   SuggestionCardsPending,
@@ -11,7 +12,8 @@ import {
   WhatItTakes,
   type MealType,
 } from '@/components/today';
-import { Body, Caption } from '@/components/ui';
+import { Body } from '@/components/ui';
+import { aiErrorMessage, useAiKey } from '@/lib/ai';
 import { useSuggest } from '@/lib/suggest';
 
 /**
@@ -29,6 +31,7 @@ export default function Today() {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [portions, setPortions] = useState(1);
   const suggest = useSuggest();
+  const aiKey = useAiKey();
   const stacked = useStacked();
 
   const suggestions = suggest.data?.suggestions;
@@ -54,6 +57,12 @@ export default function Today() {
       onMealTypeChange={setMealType}
       onSuggest={submit}
       pending={suggest.isPending}
+      // Only once the key query says so, so it never flashes while loading.
+      blocked={
+        aiKey.data === null ? (
+          <AiNotice tone="secondary" message="Add an API key to get suggestions." toSettings />
+        ) : undefined
+      }
       stacked={stacked}
     />
   );
@@ -62,7 +71,12 @@ export default function Today() {
     <SuggestionCardsPending count={SUGGESTION_COUNT} stacked={stacked} />
   ) : suggest.isError ? (
     // The accent, for want of a danger colour - see the README's Later list.
-    <Caption tone="accent">Those suggestions did not come through. Try again.</Caption>
+    <AiNotice
+      {...(aiErrorMessage(suggest.error, aiKey.data?.provider) ?? {
+        message: 'Those suggestions did not come through. Try again.',
+        toSettings: false,
+      })}
+    />
   ) : suggestions ? (
     <>
       <View className={stacked ? 'gap-4' : 'flex-row gap-4'}>

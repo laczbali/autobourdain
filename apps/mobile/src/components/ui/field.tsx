@@ -11,9 +11,11 @@ type Props = TextInputProps & {
   error?: string;
   hint?: string;
   className?: string;
+  /** Extra classes for the input itself - a taller box, say. */
+  inputClassName?: string;
 };
 
-export function Field({ label, error, hint, className = '', ...rest }: Props) {
+export function Field({ label, error, hint, className = '', inputClassName = '', ...rest }: Props) {
   const { palette } = useTheme();
 
   return (
@@ -22,7 +24,7 @@ export function Field({ label, error, hint, className = '', ...rest }: Props) {
       <TextInput
         // The placeholder is not a className either - RN styles it by prop.
         placeholderTextColor={palette.muted}
-        className={`rounded-card border bg-inset px-4 py-3 text-text ${typeScale.body} ${error ? 'border-accent' : 'border-control'}`}
+        className={`rounded-card border bg-inset px-4 py-3 text-text ${typeScale.body} ${error ? 'border-accent' : 'border-control'} ${inputClassName}`}
         {...rest}
       />
       {(error ?? hint) && <Caption tone={error ? 'accent' : 'muted'}>{error ?? hint}</Caption>}

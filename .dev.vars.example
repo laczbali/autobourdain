@@ -7,6 +7,11 @@ BETTER_AUTH_SECRET="dev-only-change-me"
 # https://developers.cloudflare.com/turnstile/troubleshooting/testing/
 TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
 
+# Encrypts users' AI provider keys at rest. Any 32 random bytes in base64 -
+# generate one with the command above. Changing it makes stored keys unreadable,
+# so locally that just means pasting your key in again.
+AI_KEY_ENCRYPTION_KEY=""
+
 # The matching always-passes test site key, for the /api/turnstile page the
 # native app loads in a WebView. Overrides wrangler.jsonc locally: the real
 # widget only accepts autobourdain.blaczko.com, not localhost or a LAN IP.

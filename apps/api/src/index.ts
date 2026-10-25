@@ -1,19 +1,53 @@
 import {
+  aiKeyPatchSchema,
+  aiKeyPutSchema,
   preferencesPatchSchema,
+  suggestRequestSchema,
+  type AiKeyResponse,
+  type AiModelsResponse,
+  type ApiErrorBody,
   type HealthResponse,
   type MeResponse,
   type Preferences,
+  type SuggestResponse,
 } from '@autobourdain/shared';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
+import { HTTPException } from 'hono/http-exception';
 
+import {
+  deleteAiKey,
+  getAiKey,
+  getAiKeyForUse,
+  getModels,
+  saveAiKey,
+  setAiModel,
+} from './ai/credentials';
+import { AiError } from './ai/errors';
+import { aiErrorResponse } from './ai/http';
+import { ADAPTERS } from './ai/registry';
 import { createAuth, trustedOrigins } from './auth';
 import { readPreferences, writePreferences } from './preferences';
+import { generateSuggestions } from './suggest/suggest';
 import { turnstilePage } from './turnstile-page';
 
 const app = new Hono<{ Bindings: Env }>();
+
+// A provider failure becomes the same response wherever it is thrown. Anything
+// else is a bug, and stays a bare 500.
+app.onError((error, c) => {
+  if (error instanceof AiError) {
+    const { status, body } = aiErrorResponse(error);
+    return c.json<ApiErrorBody>(body, status);
+  }
+  if (error instanceof HTTPException) return error.getResponse();
+  console.error(error);
+  return c.json<ApiErrorBody>({ error: 'Internal server error' }, 500);
+});
+
+const NO_AI_KEY: ApiErrorBody = { error: 'No API key is stored', code: 'no_ai_key' };
 
 /**
  * In production the app and API share an origin, so CORS is a no-op. It only
@@ -83,6 +117,79 @@ app.patch(
     const userId = c.get('userId');
     await writePreferences(c.env, userId, c.req.valid('json'));
     return c.json<Preferences>(await readPreferences(c.env, userId));
+  },
+);
+
+// The user's AI provider key. It goes in through PUT and never comes back out:
+// reads return the provider, the model and the key's last four characters.
+app.get('/api/ai-key', requireUser, async (c) =>
+  c.json<AiKeyResponse>(await getAiKey(c.env, c.get('userId'))),
+);
+
+app.put(
+  '/api/ai-key',
+  requireUser,
+  zValidator('json', aiKeyPutSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid key' }, 400);
+  }),
+  async (c) => c.json<AiKeyResponse>(await saveAiKey(c.env, c.get('userId'), c.req.valid('json'))),
+);
+
+app.patch(
+  '/api/ai-key',
+  requireUser,
+  zValidator('json', aiKeyPatchSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid model' }, 400);
+  }),
+  async (c) => {
+    const result = await setAiModel(c.env, c.get('userId'), c.req.valid('json').model);
+    if (result.status === 'no_key') return c.json(NO_AI_KEY, 409);
+    if (result.status === 'unknown_model') {
+      return c.json<ApiErrorBody>({ error: 'The key cannot use that model' }, 400);
+    }
+    return c.json<AiKeyResponse>(result.key);
+  },
+);
+
+app.delete('/api/ai-key', requireUser, async (c) => {
+  await deleteAiKey(c.env, c.get('userId'));
+  return c.body(null, 204);
+});
+
+// The models the key can use, from the cache unless it is a day old or
+// `?refresh=true` asks for a fresh list.
+app.get('/api/ai-key/models', requireUser, async (c) => {
+  const list = await getModels(c.env, c.get('userId'), {
+    refresh: c.req.query('refresh') === 'true',
+  });
+  if (!list) return c.json(NO_AI_KEY, 409);
+  return c.json<AiModelsResponse>({
+    models: list.models,
+    fetchedAt: list.fetchedAt.toISOString(),
+  });
+});
+
+// Three meal suggestions from the user's own model, with their likes &
+// dislikes added to the prompt.
+app.post(
+  '/api/suggest',
+  requireUser,
+  zValidator('json', suggestRequestSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid ask' }, 400);
+  }),
+  async (c) => {
+    const userId = c.get('userId');
+    const key = await getAiKeyForUse(c.env, userId);
+    if (!key) return c.json(NO_AI_KEY, 409);
+
+    const { recipePreferences } = await readPreferences(c.env, userId);
+    const response = await generateSuggestions(
+      ADAPTERS[key.provider],
+      { apiKey: key.apiKey, model: key.model },
+      c.req.valid('json'),
+      recipePreferences,
+    );
+    return c.json<SuggestResponse>(response);
   },
 );
 

@@ -1,12 +1,26 @@
 import { Stack } from 'expo-router';
 import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 
+import { DEFAULT_PREFERENCES } from '@autobourdain/shared';
+
 import Account from '@/app/(shell)/settings/account';
+import AiSettings from '@/app/(shell)/settings/ai';
 import Appearance from '@/app/(shell)/settings/appearance';
 import SettingsIndex from '@/app/(shell)/settings/index';
+import LikesAndDislikes from '@/app/(shell)/settings/likes-and-dislikes';
 import SettingsLayout from '@/app/(shell)/settings/_layout';
+import { measureTriggers } from '@/components/ui/select.testing';
+import {
+  useAiKey,
+  useAiModels,
+  useDeleteAiKey,
+  useRefreshAiModels,
+  useSaveAiKey,
+  useUpdateAiModel,
+} from '@/lib/ai';
+import { ApiError } from '@/lib/api-error';
 import { authClient, useSession } from '@/lib/auth-client';
-import { useUpdatePreferences } from '@/lib/preferences';
+import { usePreferences, useUpdatePreferences } from '@/lib/preferences';
 import { ThemeProvider } from '@/theme/theme-provider';
 
 // No better-auth client, query client or network: the screens are tested
@@ -16,13 +30,53 @@ jest.mock('@/lib/auth-client', () => ({
   authClient: { signOut: jest.fn() },
 }));
 jest.mock('@/lib/preferences', () => ({
+  usePreferences: jest.fn(),
   useUpdatePreferences: jest.fn(),
+}));
+// The hooks are faked; the error wording is the real thing.
+jest.mock('@/lib/ai', () => ({
+  ...jest.requireActual('@/lib/ai'),
+  useAiKey: jest.fn(),
+  useAiModels: jest.fn(),
+  useSaveAiKey: jest.fn(),
+  useUpdateAiModel: jest.fn(),
+  useDeleteAiKey: jest.fn(),
+  useRefreshAiModels: jest.fn(),
 }));
 
 const mockUseSession = useSession as unknown as jest.Mock;
+const mockUsePreferences = usePreferences as unknown as jest.Mock;
 const mockUseUpdatePreferences = useUpdatePreferences as unknown as jest.Mock;
 const mockSignOut = authClient.signOut as unknown as jest.Mock;
 const mockMutate = jest.fn();
+
+const mockUseAiKey = useAiKey as unknown as jest.Mock;
+const mockUseAiModels = useAiModels as unknown as jest.Mock;
+const mockUseSaveAiKey = useSaveAiKey as unknown as jest.Mock;
+const mockUseUpdateAiModel = useUpdateAiModel as unknown as jest.Mock;
+const mockUseDeleteAiKey = useDeleteAiKey as unknown as jest.Mock;
+const mockUseRefreshAiModels = useRefreshAiModels as unknown as jest.Mock;
+const mockSaveKey = jest.fn();
+const mockUpdateModel = jest.fn();
+const mockDeleteKey = jest.fn();
+
+/** A mutation hook's result, idle unless told otherwise. */
+function mutation(mutate: jest.Mock, overrides: Record<string, unknown> = {}) {
+  return {
+    mutate,
+    reset: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    variables: undefined,
+    ...overrides,
+  };
+}
+
+const STORED_KEY = { provider: 'anthropic', model: 'claude-newest', keyHint: 'abcd' };
+
+measureTriggers();
 
 function RootLayout() {
   return (
@@ -39,7 +93,9 @@ async function renderSettings(initialUrl: string) {
       _layout: RootLayout,
       '(shell)/settings/_layout': SettingsLayout,
       '(shell)/settings/index': SettingsIndex,
+      '(shell)/settings/likes-and-dislikes': LikesAndDislikes,
       '(shell)/settings/appearance': Appearance,
+      '(shell)/settings/ai': AiSettings,
       '(shell)/settings/account': Account,
     },
     { initialUrl },
@@ -53,25 +109,44 @@ beforeEach(() => {
     data: { user: { id: 'u1', name: 'Bourdain', email: 'a@b.c' } },
     isPending: false,
   });
-  mockUseUpdatePreferences.mockReturnValue({ mutate: mockMutate, isError: false });
+  mockUsePreferences.mockReturnValue({ data: DEFAULT_PREFERENCES });
+  mockUseUpdatePreferences.mockReturnValue(mutation(mockMutate));
+  mockUseAiKey.mockReturnValue({ data: null, isPending: false, isError: false });
+  mockUseAiModels.mockReturnValue({
+    data: {
+      models: [
+        { id: 'claude-newest', label: 'Claude Newest' },
+        { id: 'claude-older', label: 'Claude Older' },
+      ],
+      fetchedAt: '2026-10-25T12:00:00.000Z',
+    },
+    isPending: false,
+    error: null,
+  });
+  mockUseSaveAiKey.mockReturnValue(mutation(mockSaveKey));
+  mockUseUpdateAiModel.mockReturnValue(mutation(mockUpdateModel));
+  mockUseDeleteAiKey.mockReturnValue(mutation(mockDeleteKey));
+  mockUseRefreshAiModels.mockReturnValue(mutation(jest.fn()));
 });
 
 afterEach(() => jest.clearAllMocks());
 
 describe('settings', () => {
-  it('opens on Appearance', async () => {
+  it('opens on the first section', async () => {
     const { router } = await renderSettings('/settings');
-    expect(router.getPathname()).toBe('/settings/appearance');
+    expect(router.getPathname()).toBe('/settings/likes-and-dislikes');
   });
 
   it('lists only the built sections, under their group', async () => {
     await renderSettings('/settings/appearance');
 
+    expect(screen.getByText('Preferences')).toBeTruthy();
     expect(screen.getByText('App')).toBeTruthy();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(2);
-    expect(within(tabs[0]).getByText('Appearance')).toBeTruthy();
-    expect(within(tabs[1]).getByText('Account')).toBeTruthy();
+    expect(tabs).toHaveLength(4);
+    ['Likes & dislikes', 'Appearance', 'AI', 'Account'].forEach((label, index) =>
+      expect(within(tabs[index]).getByText(label)).toBeTruthy(),
+    );
   });
 
   it('marks the section it is on, and moves between them', async () => {
@@ -109,7 +184,7 @@ describe('Appearance', () => {
   });
 
   it('says so when a change did not save', async () => {
-    mockUseUpdatePreferences.mockReturnValue({ mutate: mockMutate, isError: true });
+    mockUseUpdatePreferences.mockReturnValue(mutation(mockMutate, { isError: true }));
     await renderSettings('/settings/appearance');
     expect(screen.getByText(/did not save/)).toBeTruthy();
   });
@@ -126,5 +201,132 @@ describe('Account', () => {
     await renderSettings('/settings/account');
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
     expect(mockSignOut).toHaveBeenCalled();
+  });
+});
+
+describe('Likes & dislikes', () => {
+  it('shows what is stored', async () => {
+    mockUsePreferences.mockReturnValue({
+      data: { ...DEFAULT_PREFERENCES, recipePreferences: 'No mushrooms.' },
+    });
+    await renderSettings('/settings/likes-and-dislikes');
+
+    expect(screen.getByLabelText('Likes & dislikes').props.value).toBe('No mushrooms.');
+    expect(screen.getByText('13 / 2000')).toBeTruthy();
+  });
+
+  it('saves nothing until something changed', async () => {
+    await renderSettings('/settings/likes-and-dislikes');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('saves what was typed', async () => {
+    await renderSettings('/settings/likes-and-dislikes');
+
+    await fireEvent.changeText(screen.getByLabelText('Likes & dislikes'), 'Loves leeks.');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      { recipePreferences: 'Loves leeks.' },
+      expect.anything(),
+    );
+    expect(screen.getByText('12 / 2000')).toBeTruthy();
+  });
+
+  it('says so when it did not save', async () => {
+    mockUseUpdatePreferences.mockReturnValue(mutation(mockMutate, { isError: true }));
+    await renderSettings('/settings/likes-and-dislikes');
+    expect(screen.getByText(/did not save/)).toBeTruthy();
+  });
+});
+
+describe('AI', () => {
+  it('asks for a key when none is stored, and offers no model yet', async () => {
+    await renderSettings('/settings/ai');
+
+    expect(screen.getByRole('button', { name: 'Anthropic', selected: true })).toBeTruthy();
+    expect(screen.getByPlaceholderText('Your Anthropic API key')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Model:/ })).toBeNull();
+  });
+
+  it('saves a key', async () => {
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Save key' }));
+    expect(mockSaveKey).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Your Anthropic API key'), ' sk-ant-1 ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save key' }));
+
+    expect(mockSaveKey).toHaveBeenCalledWith(
+      { provider: 'anthropic', apiKey: 'sk-ant-1' },
+      expect.anything(),
+    );
+  });
+
+  it('says so when the provider turned the key down', async () => {
+    mockUseSaveAiKey.mockReturnValue(
+      mutation(mockSaveKey, {
+        isError: true,
+        error: new ApiError(422, 'The API key was not accepted', 'ai_key_invalid'),
+      }),
+    );
+    await renderSettings('/settings/ai');
+
+    expect(screen.getByText('Anthropic did not accept the API key.')).toBeTruthy();
+  });
+
+  it('shows only the end of a stored key, and its model', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    expect(screen.getByText('....abcd')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Model: Claude Newest' })).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Your Anthropic API key')).toBeNull();
+  });
+
+  it('changes the model', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Model: Claude Newest' }));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Claude Older' }));
+
+    expect(mockUpdateModel).toHaveBeenCalledWith({ model: 'claude-older' });
+  });
+
+  it('asks before removing the key', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+    expect(mockDeleteKey).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove key' }));
+    expect(mockDeleteKey).toHaveBeenCalled();
+  });
+
+  it('can keep the key after all', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep it' }));
+
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
+    expect(mockDeleteKey).not.toHaveBeenCalled();
+  });
+
+  it('replaces a stored key', async () => {
+    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    await renderSettings('/settings/ai');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Replace' }));
+
+    expect(screen.getByPlaceholderText('Your Anthropic API key')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });
 });

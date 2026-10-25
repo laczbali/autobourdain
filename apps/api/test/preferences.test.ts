@@ -1,15 +1,8 @@
-import { DEFAULT_PREFERENCES, type MeResponse, type Preferences } from '@autobourdain/shared';
+import { DEFAULT_PREFERENCES, type Preferences } from '@autobourdain/shared';
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 
-import { get, patch, signUp, worker } from './helpers';
-
-async function userIdFor(cookie: string): Promise<string> {
-  const response = await worker.fetch(get('/api/me', { cookie }));
-  const { user } = await response.json<MeResponse>();
-  if (!user) throw new Error('no user behind that cookie');
-  return user.id;
-}
+import { get, patch, signUp, userIdFor, worker } from './helpers';
 
 describe('/api/preferences', () => {
   it('turns away a signed-out read', async () => {
@@ -38,10 +31,18 @@ describe('/api/preferences', () => {
       patch('/api/preferences', { theme: 'warm-ink', mode: 'dark' }, { cookie }),
     );
     expect(written.status).toBe(200);
-    await expect(written.json()).resolves.toEqual({ theme: 'warm-ink', mode: 'dark' });
+    await expect(written.json()).resolves.toEqual({
+      ...DEFAULT_PREFERENCES,
+      theme: 'warm-ink',
+      mode: 'dark',
+    });
 
     const read = await worker.fetch(get('/api/preferences', { cookie }));
-    await expect(read.json()).resolves.toEqual({ theme: 'warm-ink', mode: 'dark' });
+    await expect(read.json()).resolves.toEqual({
+      ...DEFAULT_PREFERENCES,
+      theme: 'warm-ink',
+      mode: 'dark',
+    });
   });
 
   it('leaves the keys a patch does not mention alone', async () => {
@@ -50,7 +51,11 @@ describe('/api/preferences', () => {
 
     const response = await worker.fetch(patch('/api/preferences', { mode: 'light' }, { cookie }));
 
-    await expect(response.json()).resolves.toEqual({ theme: 'warm-ink', mode: 'light' });
+    await expect(response.json()).resolves.toEqual({
+      ...DEFAULT_PREFERENCES,
+      theme: 'warm-ink',
+      mode: 'light',
+    });
   });
 
   it('overwrites a key that is set again', async () => {
@@ -69,7 +74,34 @@ describe('/api/preferences', () => {
     const response = await worker.fetch(patch('/api/preferences', {}, { cookie }));
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ theme: 'warm-ink', mode: 'system' });
+    await expect(response.json()).resolves.toEqual({
+      ...DEFAULT_PREFERENCES,
+      theme: 'warm-ink',
+      mode: 'system',
+    });
+  });
+
+  it('stores likes & dislikes, trimmed', async () => {
+    const { cookie } = await signUp();
+
+    await worker.fetch(
+      patch('/api/preferences', { recipePreferences: '  No mushrooms.\n' }, { cookie }),
+    );
+
+    const read = await worker.fetch(get('/api/preferences', { cookie }));
+    await expect(read.json<Preferences>()).resolves.toMatchObject({
+      recipePreferences: 'No mushrooms.',
+    });
+  });
+
+  it('takes likes & dislikes right up to the limit', async () => {
+    const { cookie } = await signUp();
+
+    const response = await worker.fetch(
+      patch('/api/preferences', { recipePreferences: 'x'.repeat(2000) }, { cookie }),
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it.each([
@@ -78,6 +110,8 @@ describe('/api/preferences', () => {
     ['an unknown key', { fontSize: 14 }],
     ['a null value', { mode: null }],
     ['a body that is not an object', ['dark']],
+    ['likes & dislikes over the limit', { recipePreferences: 'x'.repeat(2001) }],
+    ['likes & dislikes that are not text', { recipePreferences: 42 }],
   ])('rejects %s and stores nothing', async (_, body) => {
     const { cookie } = await signUp();
 

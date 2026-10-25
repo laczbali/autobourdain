@@ -33,22 +33,17 @@ no saved recipes, no kitchen stock. Asking again is the refinement.
 Leave out, rather than fake, everything that needs data we do not have:
 "everything at home", recently cooked, repeat counting, stock deduction
 
-The frontend is done, against a mocked `suggestMeals` in
-`apps/mobile/src/lib/api.ts`.
+Built end to end: each user's own Anthropic key and model under Settings ->
+AI, their likes & dislikes under Settings -> Preferences, and
+`POST /api/suggest` behind the Today page.
 
-- [ ] Pick the model provider - Workers AI binding vs an Anthropic API key as a
-      Cloudflare secret. Weigh cost, latency and how well each holds a response
-      schema
-- [ ] `POST /api/suggest`, to the contract in `packages/shared/src/suggest.ts`:
-      ask text and meal type in; three suggestions out (title, description,
-      image URL or null, portions, ingredients, method), validated against the
-      schema in the Worker before they reach the client
-- [ ] Swap the mocked `suggestMeals` for the real call, and delete
-      `suggest.mock.ts`
+- [ ] Set `AI_KEY_ENCRYPTION_KEY` as a secret in the dashboard (see Deploying)
+      before the first deploy that carries this
+- [ ] Try a real ask against a real key - the tests only ever talk to a fake
+      Anthropic
 
 **2. Followup steps**
 
-- [ ] Settings - recipe preferences
 - [ ] Kitchen item tracking
 - [ ] Recipes
 - [ ] Week planning
@@ -61,13 +56,24 @@ The frontend is done, against a mocked `suggestMeals` in
 - [ ] No danger colour exists in the palettes - errors currently borrow the
       accent. Decide one before the first destructive action ships
 - [ ] Recipe photos - every wireframe has a dish image and we have no store for
-      one yet
+      one yet. `imageUrl` is always null for now. Two known routes: the model
+      returns a search phrase and the Worker looks it up on Unsplash or Pexels,
+      or images are generated, which also needs a store
 - [ ] Today, the parts of `2e` left out of the first pass: the Mix / My
       recipes / New ideas switch, the filters (time limit, from kitchen, no
       repeats), Or plan ahead, Recently cooked, More from my recipes, and the
       Lands in / Cancel / Confirm meal row
 - [ ] Meal types are fixed (`MEAL_TYPES` in `apps/mobile/src/lib/suggest.ts`).
-      Make them the user's to edit - the contract already takes any string- [ ] Receipt scanning into the kitchen list
+      Make them the user's to edit - the contract already takes any string
+- [ ] Likes & dislikes per meal type, once meal types are the user's - the
+      prompt is built per ask and already knows the meal type
+- [ ] Rate limit asks per user. Each user pays for their own, so it is about
+      runaway clients rather than cost
+- [ ] A procedure for rotating `AI_KEY_ENCRYPTION_KEY`. The stored format is
+      versioned (`v1.`) to allow it, but nothing reads a second secret yet
+- [ ] Another AI provider: an adapter in `apps/api/src/ai/`, an entry in
+      `ADAPTERS` and in `AI_PROVIDERS`
+- [ ] Receipt scanning into the kitchen list
 - [ ] Drag a saved recipe onto a day on the week board
 - [ ] Narrow-screen nav shape is undecided - sidebar vs bottom tabs. Decide
       before the app matters on a phone
@@ -153,8 +159,12 @@ are generated from the schema and versioned with the code. That needs a one-off
 cp .dev.vars.example .dev.vars
 ```
 
-Put a random value in `BETTER_AUTH_SECRET` (`openssl rand -base64 32`).
-`.dev.vars` is gitignored.
+Put a random value in `BETTER_AUTH_SECRET` and in `AI_KEY_ENCRYPTION_KEY`
+(`openssl rand -base64 32` for each). `.dev.vars` is gitignored.
+
+`AI_KEY_ENCRYPTION_KEY` encrypts the API keys users store under Settings ->
+AI. Changing it makes the stored keys unreadable, which locally just means
+pasting yours in again.
 
 Turnstile needs nothing set up locally. `.dev.vars.example` and
 `apps/mobile/.env.development` carry Cloudflare's always-passes test keys, so
@@ -244,10 +254,11 @@ The API tests run **inside the Workers runtime**, through
 `@cloudflare/vitest-pool-workers`: the real `wrangler.jsonc`, the real Hono app,
 and a real local D1 with `apps/api/migrations` applied before every test file.
 They live in `apps/api/test`, and they cover health, routing, CORS, the trusted
-origin list, email sign-up and sign-in, the Turnstile gate and the conditional
-GitHub provider.
+origin list, email sign-up and sign-in, the Turnstile gate, the conditional
+GitHub provider, preferences, the stored AI key and its model list, and
+`/api/suggest`.
 
-Three things to know before adding more:
+Four things to know before adding more:
 
 - **Storage is isolated per test file, not per test.** Everything in one file
   shares a database, so anything that writes a row takes a unique email from
@@ -256,6 +267,10 @@ Three things to know before adding more:
   always-passes test secret, with the always-fails one (`2x00...AA`) swapped in
   for the rejection path. So the auth tests need internet. Swapping them to
   `cloudflare:test`'s `fetchMock` is a small change if that ever grates.
+- **Anthropic is faked, never called.** `test/fake-anthropic.ts` spies on the
+  global `fetch` - the Worker runs in the same isolate as the tests - and
+  answers anything for `api.anthropic.com`, letting every other host through.
+  No test needs a real key or spends anything.
 - **Bindings come from `vitest.config.ts`, not `.dev.vars`.** A test run must
   not depend on local secrets, or change when someone edits theirs.
 
@@ -323,6 +338,10 @@ merging `develop` into it when a deploy is wanted.
    - `TURNSTILE_SECRET_KEY` — from the Turnstile widget. Required: email
      sign-in and sign-up fail closed without it
    - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`, if using GitHub sign-in
+   - `AI_KEY_ENCRYPTION_KEY` - `openssl rand -base64 32`. Required: storing
+     or using an AI key fails without it. Keep a copy somewhere safe - losing
+     it makes every stored key unreadable, and every user has to enter theirs
+     again
 4. Set `BETTER_AUTH_URL` in `wrangler.jsonc` to `https://autobourdain.blaczko.com`
    — the deployed origin — and push.
 
@@ -412,6 +431,12 @@ For store builds:
 | `GET /api/me`            | Current user, or `null`                       |
 | `GET /api/preferences`   | The user's preferences, defaults filled in    |
 | `PATCH /api/preferences` | Change some preferences; returns them all     |
+| `GET /api/ai-key`        | The stored AI key's provider, model and hint  |
+| `PUT /api/ai-key`        | Check a key with the provider, then store it  |
+| `PATCH /api/ai-key`      | Change the model                              |
+| `DELETE /api/ai-key`     | Remove the key                                |
+| `GET /api/ai-key/models` | Models the key can use, cached for a day      |
+| `POST /api/suggest`      | Three meal suggestions from the user's model  |
 | `GET /api/turnstile`     | Turnstile widget page, for the native WebView |
 
 Anything not under `/api/` is served from the web build, with unknown paths

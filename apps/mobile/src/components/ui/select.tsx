@@ -13,6 +13,8 @@ type Props<T extends string> = {
   onChange: (value: T) => void;
   /** Shown in the trigger while nothing is picked. */
   placeholder: string;
+  /** How an option reads, when its value is not fit to show - an id, say. */
+  labelFor?: (value: T) => string;
   label?: string;
   hint?: string;
   className?: string;
@@ -34,6 +36,7 @@ export function Select<T extends string>({
   value,
   onChange,
   placeholder,
+  labelFor = (option) => option,
   label,
   hint,
   className = '',
@@ -53,6 +56,7 @@ export function Select<T extends string>({
       setAnchor({ x, y, width, height, window: windowKey }),
     );
   const close = () => setAnchor(null);
+  const shown = value ? labelFor(value) : placeholder;
 
   return (
     <View className={`gap-1.5 ${className}`}>
@@ -60,14 +64,12 @@ export function Select<T extends string>({
       <Pressable
         ref={trigger}
         accessibilityRole="button"
-        accessibilityLabel={label ? `${label}: ${value ?? placeholder}` : undefined}
+        accessibilityLabel={label ? `${label}: ${shown}` : undefined}
         accessibilityState={{ expanded: open }}
         onPress={show}
         className={`flex-row items-center justify-between gap-3 rounded-card border bg-inset px-4 py-3 active:opacity-70 ${open ? 'border-accent' : 'border-control'}`}
       >
-        <Text className={`${typeScale.body} ${value ? 'text-text' : 'text-muted'}`}>
-          {value ?? placeholder}
-        </Text>
+        <Text className={`${typeScale.body} ${value ? 'text-text' : 'text-muted'}`}>{shown}</Text>
         <Chevron />
       </Pressable>
       {hint && <Caption>{hint}</Caption>}
@@ -105,7 +107,7 @@ export function Select<T extends string>({
                           : `${typeScale.body} text-secondary`
                       }
                     >
-                      {option}
+                      {labelFor(option)}
                     </Text>
                   </Pressable>
                 );

@@ -8,4 +8,7 @@ interface Env {
   // Turnstile. Required - sign-in and sign-up fail without it.
   TURNSTILE_SECRET_KEY: string;
   GITHUB_CLIENT_SECRET?: string;
+  // 32 random bytes, base64. Encrypts users' AI provider keys at rest - see
+  // src/ai/crypto.ts. Losing it makes every stored key unreadable.
+  AI_KEY_ENCRYPTION_KEY: string;
 }

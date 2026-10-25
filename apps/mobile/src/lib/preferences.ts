@@ -1,4 +1,4 @@
-import type { Preferences, PreferencesPatch } from '@autobourdain/shared';
+import { DEFAULT_PREFERENCES, type Preferences, type PreferencesPatch } from '@autobourdain/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useTheme } from '@/theme/theme-provider';
@@ -44,9 +44,9 @@ export function useUpdatePreferences() {
       // A refetch landing mid-change would put the old value back.
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<Preferences>(key);
-      // What was on screen, which is what to go back to even before the
-      // query has ever loaded.
-      const applied: Preferences = { theme, mode };
+      // The appearance on screen, over whatever else is stored - what to go
+      // back to, even before the query has ever loaded.
+      const applied: Preferences = { ...DEFAULT_PREFERENCES, ...previous, theme, mode };
 
       queryClient.setQueryData<Preferences>(key, (current) => ({
         ...(current ?? applied),

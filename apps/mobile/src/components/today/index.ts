@@ -1,3 +1,4 @@
+export { AiNotice } from './ai-notice';
 export { AskPanel, type MealType } from './ask-panel';
 export { useStacked } from './layout';
 export { SuggestionCard, SuggestionCardsPending } from './suggestion-card';

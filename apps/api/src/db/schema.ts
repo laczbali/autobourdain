@@ -102,3 +102,31 @@ export const userPreferences = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );
+
+/**
+ * A user's AI provider key, one per user. Storing a new key replaces the old
+ * one, whichever provider either is for.
+ *
+ * The key is stored encrypted - see `src/ai/crypto.ts` - and never leaves the
+ * Worker. `models` caches what the key can use, so the settings page does not
+ * ask the provider every time it opens. Provider, model and the cached list
+ * are checked with zod on read, like preferences.
+ */
+export const userAiCredentials = sqliteTable('user_ai_credentials', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(),
+  model: text('model').notNull(),
+  encryptedKey: text('encrypted_key').notNull(),
+  keyHint: text('key_hint').notNull(),
+  models: text('models', { mode: 'json' }).notNull(),
+  modelsFetchedAt: integer('models_fetched_at', { mode: 'timestamp' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+});
