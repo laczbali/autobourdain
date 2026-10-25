@@ -1,8 +1,15 @@
-import type { HealthResponse, Preferences, PreferencesPatch } from '@autobourdain/shared';
+import type {
+  HealthResponse,
+  Preferences,
+  PreferencesPatch,
+  SuggestRequest,
+  SuggestResponse,
+} from '@autobourdain/shared';
 import { Platform } from 'react-native';
 
 import { authClient } from './auth-client';
 import { API_URL } from './config';
+import { mockSuggestMeals } from './suggest.mock';
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -38,3 +45,8 @@ export const patchPreferences = (patch: PreferencesPatch) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   });
+
+// Mocked until the endpoint exists. The real one is a POST of the request to
+// `/api/suggest`, and nothing that calls this has to change.
+export const suggestMeals = (request: SuggestRequest): Promise<SuggestResponse> =>
+  mockSuggestMeals(request);

@@ -28,23 +28,23 @@ they come up.
 
 **1. Today page - first pass**
 
-A random suggestion with refinements, and nothing else: no previous
-recommendations, no saved recipes, no kitchen stock.
+Three suggestions from an ask, and nothing else: no previous recommendations,
+no saved recipes, no kitchen stock. Asking again is the refinement.
 Leave out, rather than fake, everything that needs data we do not have:
 "everything at home", recently cooked, repeat counting, stock deduction
+
+The frontend is done, against a mocked `suggestMeals` in
+`apps/mobile/src/lib/api.ts`.
 
 - [ ] Pick the model provider - Workers AI binding vs an Anthropic API key as a
       Cloudflare secret. Weigh cost, latency and how well each holds a response
       schema
-- [ ] `POST /api/suggest`: ask text, meal type, time limit and portions in; a
-      recipe out (title, time, portions, ingredients, method), validated against
-      a schema in the Worker before it reaches the client
-- [ ] Today screen - content and flow from `D1d`, treatment from `2e`, which
-      drew this exact screen: ask field, meal-type chips, time and portion
-      controls, Suggest
-- [ ] Suggestion card plus the "what it takes" detail beside it
-- [ ] Refinements, details to be decided
-- [ ] Pending and failure states for a call that takes seconds and can fail
+- [ ] `POST /api/suggest`, to the contract in `packages/shared/src/suggest.ts`:
+      ask text and meal type in; three suggestions out (title, description,
+      image URL or null, portions, ingredients, method), validated against the
+      schema in the Worker before they reach the client
+- [ ] Swap the mocked `suggestMeals` for the real call, and delete
+      `suggest.mock.ts`
 
 **2. Followup steps**
 
@@ -62,7 +62,12 @@ Leave out, rather than fake, everything that needs data we do not have:
       accent. Decide one before the first destructive action ships
 - [ ] Recipe photos - every wireframe has a dish image and we have no store for
       one yet
-- [ ] Receipt scanning into the kitchen list
+- [ ] Today, the parts of `2e` left out of the first pass: the Mix / My
+      recipes / New ideas switch, the filters (time limit, from kitchen, no
+      repeats), Or plan ahead, Recently cooked, More from my recipes, and the
+      Lands in / Cancel / Confirm meal row
+- [ ] Meal types are fixed (`MEAL_TYPES` in `apps/mobile/src/lib/suggest.ts`).
+      Make them the user's to edit - the contract already takes any string- [ ] Receipt scanning into the kitchen list
 - [ ] Drag a saved recipe onto a day on the week board
 - [ ] Narrow-screen nav shape is undecided - sidebar vs bottom tabs. Decide
       before the app matters on a phone

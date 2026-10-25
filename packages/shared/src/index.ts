@@ -6,6 +6,7 @@
  */
 
 export * from './preferences';
+export * from './suggest';
 
 export type HealthResponse = {
   ok: boolean;
