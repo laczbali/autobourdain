@@ -13,12 +13,13 @@ import SettingsLayout from '@/app/(shell)/settings/_layout';
 import { measureTriggers } from '@/components/ui/select.testing';
 import { useAdminUsers, useSetRole } from '@/lib/admin';
 import {
-  useAiKey,
+  useActivateAi,
   useAiModels,
+  useAiSettings,
   useDeleteAiKey,
   useRefreshAiModels,
   useSaveAiKey,
-  useTestAiKey,
+  useTestAi,
   useUpdateAiModel,
 } from '@/lib/ai';
 import { ApiError } from '@/lib/api-error';
@@ -45,13 +46,14 @@ jest.mock('@/lib/admin', () => ({
 // The hooks are faked; the error wording is the real thing.
 jest.mock('@/lib/ai', () => ({
   ...jest.requireActual('@/lib/ai'),
-  useAiKey: jest.fn(),
+  useAiSettings: jest.fn(),
+  useActivateAi: jest.fn(),
   useAiModels: jest.fn(),
   useSaveAiKey: jest.fn(),
   useUpdateAiModel: jest.fn(),
   useDeleteAiKey: jest.fn(),
   useRefreshAiModels: jest.fn(),
-  useTestAiKey: jest.fn(),
+  useTestAi: jest.fn(),
 }));
 
 const mockUseSession = useSession as unknown as jest.Mock;
@@ -60,13 +62,15 @@ const mockUseUpdatePreferences = useUpdatePreferences as unknown as jest.Mock;
 const mockSignOut = authClient.signOut as unknown as jest.Mock;
 const mockMutate = jest.fn();
 
-const mockUseAiKey = useAiKey as unknown as jest.Mock;
+const mockUseAiSettings = useAiSettings as unknown as jest.Mock;
+const mockUseActivateAi = useActivateAi as unknown as jest.Mock;
+const mockActivate = jest.fn();
 const mockUseAiModels = useAiModels as unknown as jest.Mock;
 const mockUseSaveAiKey = useSaveAiKey as unknown as jest.Mock;
 const mockUseUpdateAiModel = useUpdateAiModel as unknown as jest.Mock;
 const mockUseDeleteAiKey = useDeleteAiKey as unknown as jest.Mock;
 const mockUseRefreshAiModels = useRefreshAiModels as unknown as jest.Mock;
-const mockUseTestAiKey = useTestAiKey as unknown as jest.Mock;
+const mockUseTestAi = useTestAi as unknown as jest.Mock;
 const mockTestKey = jest.fn();
 const mockSaveKey = jest.fn();
 const mockUpdateModel = jest.fn();
@@ -90,7 +94,18 @@ function mutation(mutate: jest.Mock, overrides: Record<string, unknown> = {}) {
   };
 }
 
-const STORED_KEY = { provider: 'anthropic', model: 'claude-newest', keyHint: 'abcd' };
+const ANTHROPIC = { provider: 'anthropic', model: 'claude-newest', keyHint: 'abcd', active: true };
+const WORKERS_AI = {
+  provider: 'workers-ai',
+  model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  keyHint: null,
+  active: true,
+};
+
+/** The faked AI settings query, answering with these connections. */
+function aiSetUp(...connections: object[]) {
+  mockUseAiSettings.mockReturnValue({ data: { connections }, isPending: false, isError: false });
+}
 
 const SIGNED_IN = { id: 'u1', name: 'Bourdain', email: 'a@b.c' };
 
@@ -159,7 +174,8 @@ beforeEach(() => {
   signInAs('normal');
   mockUsePreferences.mockReturnValue({ data: DEFAULT_PREFERENCES });
   mockUseUpdatePreferences.mockReturnValue(mutation(mockMutate));
-  mockUseAiKey.mockReturnValue({ data: null, isPending: false, isError: false });
+  aiSetUp();
+  mockUseActivateAi.mockReturnValue(mutation(mockActivate));
   mockUseAiModels.mockReturnValue({
     data: {
       models: [
@@ -175,7 +191,7 @@ beforeEach(() => {
   mockUseUpdateAiModel.mockReturnValue(mutation(mockUpdateModel));
   mockUseDeleteAiKey.mockReturnValue(mutation(mockDeleteKey));
   mockUseRefreshAiModels.mockReturnValue(mutation(jest.fn()));
-  mockUseTestAiKey.mockReturnValue(mutation(mockTestKey));
+  mockUseTestAi.mockReturnValue(mutation(mockTestKey));
   mockUseAdminUsers.mockReturnValue({ data: { users: USERS }, isPending: false, isError: false });
   mockUseSetRole.mockReturnValue(mutation(mockSetRole));
 });
@@ -401,7 +417,7 @@ describe('AI', () => {
   });
 
   it('shows only the end of a stored key, and its model', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     expect(screen.getByText('....abcd')).toBeTruthy();
@@ -410,7 +426,7 @@ describe('AI', () => {
   });
 
   it('changes the model', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Model: Claude Newest' }));
@@ -420,18 +436,18 @@ describe('AI', () => {
   });
 
   it('asks before removing the key', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
     expect(mockDeleteKey).not.toHaveBeenCalled();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Remove key' }));
-    expect(mockDeleteKey).toHaveBeenCalled();
+    expect(mockDeleteKey).toHaveBeenCalledWith('anthropic');
   });
 
   it('can keep the key after all', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
@@ -447,7 +463,7 @@ describe('AI', () => {
   });
 
   it('tests the connection', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Test connection' }));
@@ -456,16 +472,16 @@ describe('AI', () => {
   });
 
   it('says so when the connection works', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
-    mockUseTestAiKey.mockReturnValue(mutation(mockTestKey, { isSuccess: true }));
+    aiSetUp(ANTHROPIC);
+    mockUseTestAi.mockReturnValue(mutation(mockTestKey, { isSuccess: true }));
     await renderSettings('/settings/ai');
 
     expect(screen.getByText('It works - the model answered.')).toBeTruthy();
   });
 
   it("shows the provider's reason when the connection fails", async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
-    mockUseTestAiKey.mockReturnValue(
+    aiSetUp(ANTHROPIC);
+    mockUseTestAi.mockReturnValue(
       mutation(mockTestKey, {
         isError: true,
         error: new ApiError(422, 'Your credit balance is too low', 'ai_rejected'),
@@ -477,12 +493,77 @@ describe('AI', () => {
   });
 
   it('replaces a stored key', async () => {
-    mockUseAiKey.mockReturnValue({ data: STORED_KEY, isPending: false, isError: false });
+    aiSetUp(ANTHROPIC);
     await renderSettings('/settings/ai');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Replace' }));
 
     expect(screen.getByPlaceholderText('Your Anthropic API key')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+  });
+  describe('Workers AI', () => {
+    it('is not offered to a normal user', async () => {
+      await renderSettings('/settings/ai');
+      expect(screen.queryByRole('button', { name: 'Workers AI' })).toBeNull();
+    });
+
+    it.each(['pro', 'admin'])('is offered to %s, and switches straight away', async (role) => {
+      signInAs(role);
+      await renderSettings('/settings/ai');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Workers AI' }));
+
+      expect(mockActivate).toHaveBeenCalledWith({ provider: 'workers-ai' });
+    });
+
+    it('takes no key, and offers the model and the connection test', async () => {
+      signInAs('pro');
+      aiSetUp({ ...ANTHROPIC, active: false }, WORKERS_AI);
+      mockUseAiModels.mockReturnValue({
+        data: {
+          models: [{ id: WORKERS_AI.model, label: 'Llama 3.3 70B' }],
+          fetchedAt: '2026-10-25T12:00:00.000Z',
+        },
+        isPending: false,
+        error: null,
+      });
+      await renderSettings('/settings/ai');
+
+      expect(screen.getByRole('button', { name: 'Workers AI', selected: true })).toBeTruthy();
+      expect(screen.queryByPlaceholderText(/API key/)).toBeNull();
+      expect(screen.getByRole('button', { name: 'Model: Llama 3.3 70B' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Test connection' })).toBeTruthy();
+    });
+
+    it('switches back to a stored key without asking for it again', async () => {
+      signInAs('pro');
+      aiSetUp({ ...ANTHROPIC, active: false }, WORKERS_AI);
+      await renderSettings('/settings/ai');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Anthropic' }));
+
+      expect(mockActivate).toHaveBeenCalledWith({ provider: 'anthropic' });
+    });
+
+    it('opens the key form for a keyed provider with no key, without switching', async () => {
+      signInAs('pro');
+      aiSetUp(WORKERS_AI);
+      await renderSettings('/settings/ai');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Anthropic' }));
+
+      expect(mockActivate).not.toHaveBeenCalled();
+      expect(screen.getByPlaceholderText('Your Anthropic API key')).toBeTruthy();
+    });
+
+    it('tells a demoted user why, and lets them switch away', async () => {
+      aiSetUp(WORKERS_AI);
+      await renderSettings('/settings/ai');
+
+      expect(screen.getByRole('button', { name: 'Workers AI', selected: true })).toBeTruthy();
+      expect(screen.getByText(/for Pro and Admin users only/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Test connection' })).toBeNull();
+    });
   });
 });

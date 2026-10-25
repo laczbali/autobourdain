@@ -1,0 +1,1 @@
+ALTER TABLE `user_ai_credentials` ADD `is_active` integer DEFAULT true NOT NULL;

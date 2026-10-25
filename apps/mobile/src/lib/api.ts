@@ -1,14 +1,15 @@
 import type {
   AdminUser,
   AdminUsersResponse,
-  AiKey,
-  AiKeyPatch,
+  AiActivate,
   AiKeyPut,
-  AiKeyResponse,
-  AiKeyTestResponse,
+  AiModelPatch,
   AiModelsResponse,
+  AiSettings,
+  AiTestResponse,
   ApiErrorBody,
   HealthResponse,
+  KeyedAiProvider,
   Preferences,
   PreferencesPatch,
   RoleUpdate,
@@ -69,20 +70,25 @@ export const getPreferences = () => apiFetch<Preferences>('/api/preferences');
 export const patchPreferences = (patch: PreferencesPatch) =>
   apiFetch<Preferences>('/api/preferences', withJson('PATCH', patch));
 
-export const getAiKey = () => apiFetch<AiKeyResponse>('/api/ai-key');
+export const getAiSettings = () => apiFetch<AiSettings>('/api/ai');
 
-export const putAiKey = (body: AiKeyPut) => apiFetch<AiKey>('/api/ai-key', withJson('PUT', body));
+export const putAiActive = (body: AiActivate) =>
+  apiFetch<AiSettings>('/api/ai', withJson('PUT', body));
 
-export const patchAiKey = (body: AiKeyPatch) =>
-  apiFetch<AiKey>('/api/ai-key', withJson('PATCH', body));
+export const patchAiModel = (body: AiModelPatch) =>
+  apiFetch<AiSettings>('/api/ai', withJson('PATCH', body));
 
-export const deleteAiKey = () => apiFetch<void>('/api/ai-key', { method: 'DELETE' });
+export const putAiKey = (body: AiKeyPut) =>
+  apiFetch<AiSettings>('/api/ai-key', withJson('PUT', body));
 
-/** The cached list, unless `refresh` asks the provider again. */
+export const deleteAiKey = (provider: KeyedAiProvider) =>
+  apiFetch<void>(`/api/ai-key/${provider}`, { method: 'DELETE' });
+
+/** The active provider's cached list, unless `refresh` asks it again. */
 export const getAiModels = (refresh = false) =>
-  apiFetch<AiModelsResponse>(`/api/ai-key/models${refresh ? '?refresh=true' : ''}`);
+  apiFetch<AiModelsResponse>(`/api/ai/models${refresh ? '?refresh=true' : ''}`);
 
-export const testAiKey = () => apiFetch<AiKeyTestResponse>('/api/ai-key/test', { method: 'POST' });
+export const testAi = () => apiFetch<AiTestResponse>('/api/ai/test', { method: 'POST' });
 
 export const suggestMeals = (request: SuggestRequest) =>
   apiFetch<SuggestResponse>('/api/suggest', withJson('POST', request));

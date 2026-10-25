@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 /**
  * The groups a user can be in, one each. Everyone starts as `normal`. `pro`
- * unlocks nothing yet, and `admin` sees the Admin section of settings.
+ * unlocks Workers AI - see `canUseAiProvider` - and `admin` has that too, and
+ * sees the Admin section of settings.
  */
 export const ROLES = ['normal', 'pro', 'admin'] as const;
 export type Role = (typeof ROLES)[number];

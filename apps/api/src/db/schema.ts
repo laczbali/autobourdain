@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * better-auth core tables. The property names on each table must match
@@ -107,29 +107,42 @@ export const userPreferences = sqliteTable(
 );
 
 /**
- * A user's AI provider key, one per user. Storing a new key replaces the old
- * one, whichever provider either is for.
+ * The AI providers a user has set up, one row per provider. At most one row
+ * per user is active, and that is the one suggestions come from.
  *
- * The key is stored encrypted - see `src/ai/crypto.ts` - and never leaves the
- * Worker. `models` caches what the key can use, so the settings page does not
- * ask the provider every time it opens. Provider, model and the cached list
- * are checked with zod on read, like preferences.
+ * A provider that takes the user's own key stores it encrypted - see
+ * `src/ai/crypto.ts` - and it never leaves the Worker. One that runs on the
+ * app's account, Workers AI, has no key. `models` caches what the provider
+ * offers, so the settings page does not ask every time it opens. Provider,
+ * model and the cached list are checked with zod on read, like preferences.
  */
-export const userAiCredentials = sqliteTable('user_ai_credentials', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  provider: text('provider').notNull(),
-  model: text('model').notNull(),
-  encryptedKey: text('encrypted_key').notNull(),
-  keyHint: text('key_hint').notNull(),
-  models: text('models', { mode: 'json' }).notNull(),
-  modelsFetchedAt: integer('models_fetched_at', { mode: 'timestamp' }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`)
-    .$onUpdate(() => new Date()),
-});
+export const userAiCredentials = sqliteTable(
+  'user_ai_credentials',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    // Both null for a provider without a key, and both set for one with.
+    encryptedKey: text('encrypted_key'),
+    keyHint: text('key_hint'),
+    models: text('models', { mode: 'json' }).notNull(),
+    modelsFetchedAt: integer('models_fetched_at', { mode: 'timestamp' }).notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.provider] }),
+    // The database refuses a second active row, whatever the code does.
+    uniqueIndex('user_ai_credentials_one_active')
+      .on(t.userId)
+      .where(sql`${t.isActive} = 1`),
+  ],
+);

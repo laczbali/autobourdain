@@ -1,8 +1,17 @@
 import type { AiModel } from '@autobourdain/shared';
 import type { z } from 'zod';
 
+/**
+ * How a call reaches its provider. A keyed provider reads the user's key, and
+ * Workers AI reads the Worker's own binding instead - it has no key.
+ */
+export type AiAccess = {
+  apiKey: string | null;
+  ai: Ai;
+};
+
 export type GenerateRequest<T> = {
-  apiKey: string;
+  access: AiAccess;
   model: string;
   /** The instructions, kept apart from the user turn by every provider. */
   system: string;
@@ -20,17 +29,22 @@ export type GenerateRequest<T> = {
  */
 export interface AiProviderAdapter {
   /**
-   * Every model the key can use for structured output, in the provider's own
-   * order. Doubles as the key check: a key the provider turns down throws
-   * `key_invalid`.
+   * How long an answer from `listModels` is served from the database before
+   * the provider is asked again. Zero when listing costs nothing.
    */
-  listModels(apiKey: string): Promise<AiModel[]>;
+  readonly modelsTtlMs: number;
+  /**
+   * Every model the provider offers for structured output, in its own order.
+   * For a keyed provider this doubles as the key check: a key the provider
+   * turns down throws `key_invalid`.
+   */
+  listModels(access: AiAccess): Promise<AiModel[]>;
   /**
    * The smallest real request the model will take. Listing models can pass
    * while asking fails - an account without credit, say - so this is the
-   * check that the key, its billing and the model all work together.
+   * check that the account, its billing and the model all work together.
    */
-  ping(request: { apiKey: string; model: string }): Promise<void>;
+  ping(request: { access: AiAccess; model: string }): Promise<void>;
   /** One structured answer, already parsed against the schema. */
   generate<T>(request: GenerateRequest<T>): Promise<T>;
 }

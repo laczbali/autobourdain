@@ -28,6 +28,14 @@
     }
   ],
 
+  // Workers AI, billed to this Cloudflare account. Pro and admin users can pick
+  // it instead of their own key - see apps/api/src/ai/workers-ai.ts. It always
+  // runs remotely, so `wrangler dev` spends real neurons and needs a login.
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+
   "vars": {
     // Public origin of the deployed Worker. `wrangler dev` reads this too, so
     // .dev.vars sets it back to empty locally - auth then falls back to the

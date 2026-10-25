@@ -1,4 +1,4 @@
-import type { AiKeyResponse, ApiErrorBody } from '@autobourdain/shared';
+import type { AiSettings, ApiErrorBody } from '@autobourdain/shared';
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 
@@ -11,26 +11,35 @@ async function storeKey(cookie: string, body: Record<string, unknown> = {}) {
   );
 }
 
+/** The stored Anthropic connection, from any settings response. */
+async function anthropicOf(response: Response) {
+  const { connections } = await response.json<AiSettings>();
+  return connections.find(({ provider }) => provider === 'anthropic') ?? null;
+}
+
+const readSettings = (cookie: string) => worker.fetch(get('/api/ai', { cookie }));
+
 describe('/api/ai-key', () => {
   it.each([
-    ['read', get('/api/ai-key')],
+    ['read', get('/api/ai')],
     ['store', put('/api/ai-key', { nonsense: true })],
-    ['model change', patch('/api/ai-key', { nonsense: true })],
-    ['delete', del('/api/ai-key')],
+    ['provider switch', put('/api/ai', { nonsense: true })],
+    ['model change', patch('/api/ai', { nonsense: true })],
+    ['delete', del('/api/ai-key/anthropic')],
   ])('turns away a signed-out %s, before looking at the body', async (_, request) => {
     const response = await worker.fetch(request);
     expect(response.status).toBe(401);
   });
 
-  it('has no key for a new user', async () => {
+  it('has nothing set up for a new user', async () => {
     const { cookie } = await signUp();
 
-    const response = await worker.fetch(get('/api/ai-key', { cookie }));
+    const response = await readSettings(cookie);
 
-    await expect(response.json()).resolves.toBeNull();
+    await expect(response.json()).resolves.toEqual({ connections: [] });
   });
 
-  it('checks a key with the provider, and stores it with the first model', async () => {
+  it('checks a key with the provider, and stores it active with the first model', async () => {
     const calls = fakeAnthropic();
     const { cookie } = await signUp();
 
@@ -38,9 +47,9 @@ describe('/api/ai-key', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      provider: 'anthropic',
-      model: 'claude-test-newest',
-      keyHint: 'abcd',
+      connections: [
+        { provider: 'anthropic', model: 'claude-test-newest', keyHint: 'abcd', active: true },
+      ],
     });
     expect(calls).toContainEqual(
       expect.objectContaining({ method: 'GET', path: '/v1/models', apiKey: VALID_KEY }),
@@ -53,9 +62,7 @@ describe('/api/ai-key', () => {
 
     const response = await storeKey(cookie, { model: 'claude-test-older' });
 
-    await expect(response.json<AiKeyResponse>()).resolves.toMatchObject({
-      model: 'claude-test-older',
-    });
+    await expect(anthropicOf(response)).resolves.toMatchObject({ model: 'claude-test-older' });
   });
 
   it('falls back to the first model when the one asked for is not offered', async () => {
@@ -64,9 +71,7 @@ describe('/api/ai-key', () => {
 
     const response = await storeKey(cookie, { model: 'claude-test-missing' });
 
-    await expect(response.json<AiKeyResponse>()).resolves.toMatchObject({
-      model: 'claude-test-newest',
-    });
+    await expect(anthropicOf(response)).resolves.toMatchObject({ model: 'claude-test-newest' });
   });
 
   it('only offers models that can return structured output', async () => {
@@ -77,7 +82,7 @@ describe('/api/ai-key', () => {
 
     const response = await storeKey(cookie);
 
-    await expect(response.json<AiKeyResponse>()).resolves.toMatchObject({
+    await expect(anthropicOf(response)).resolves.toMatchObject({
       model: 'claude-test-structured',
     });
   });
@@ -90,8 +95,7 @@ describe('/api/ai-key', () => {
 
     expect(response.status).toBe(422);
     await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({ code: 'ai_no_models' });
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
-    await expect(read.json()).resolves.toBeNull();
+    await expect(anthropicOf(await readSettings(cookie))).resolves.toBeNull();
   });
 
   it('turns down a key the provider rejects, and stores nothing', async () => {
@@ -104,12 +108,12 @@ describe('/api/ai-key', () => {
     await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({
       code: 'ai_key_invalid',
     });
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
-    await expect(read.json()).resolves.toBeNull();
+    await expect(anthropicOf(await readSettings(cookie))).resolves.toBeNull();
   });
 
   it.each([
     ['an unknown provider', { provider: 'openai', apiKey: VALID_KEY }],
+    ['a provider that takes no key', { provider: 'workers-ai', apiKey: VALID_KEY }],
     ['an empty key', { provider: 'anthropic', apiKey: '  ' }],
     ['an unknown field', { provider: 'anthropic', apiKey: VALID_KEY, extra: true }],
   ])('rejects %s', async (_, body) => {
@@ -130,13 +134,13 @@ describe('/api/ai-key', () => {
       .first<Record<string, unknown>>();
     expect(JSON.stringify(row)).not.toContain(VALID_KEY);
 
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
+    const read = await readSettings(cookie);
     const text = await read.text();
     expect(text).not.toContain(VALID_KEY);
     expect(JSON.parse(text)).toEqual({
-      provider: 'anthropic',
-      model: 'claude-test-newest',
-      keyHint: 'abcd',
+      connections: [
+        { provider: 'anthropic', model: 'claude-test-newest', keyHint: 'abcd', active: true },
+      ],
     });
   });
 
@@ -147,8 +151,7 @@ describe('/api/ai-key', () => {
 
     await storeKey(cookie);
 
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
-    await expect(read.json<AiKeyResponse>()).resolves.toMatchObject({
+    await expect(anthropicOf(await readSettings(cookie))).resolves.toMatchObject({
       model: 'claude-test-newest',
     });
   });
@@ -159,13 +162,11 @@ describe('/api/ai-key', () => {
     await storeKey(cookie);
 
     const response = await worker.fetch(
-      patch('/api/ai-key', { model: 'claude-test-older' }, { cookie }),
+      patch('/api/ai', { model: 'claude-test-older' }, { cookie }),
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json<AiKeyResponse>()).resolves.toMatchObject({
-      model: 'claude-test-older',
-    });
+    await expect(anthropicOf(response)).resolves.toMatchObject({ model: 'claude-test-older' });
   });
 
   it('refuses a model the key cannot use, after asking for a fresh list', async () => {
@@ -175,7 +176,7 @@ describe('/api/ai-key', () => {
     calls.length = 0;
 
     const response = await worker.fetch(
-      patch('/api/ai-key', { model: 'claude-test-missing' }, { cookie }),
+      patch('/api/ai', { model: 'claude-test-missing' }, { cookie }),
     );
 
     expect(response.status).toBe(400);
@@ -186,7 +187,7 @@ describe('/api/ai-key', () => {
     const { cookie } = await signUp();
 
     const response = await worker.fetch(
-      patch('/api/ai-key', { model: 'claude-test-older' }, { cookie }),
+      patch('/api/ai', { model: 'claude-test-older' }, { cookie }),
     );
 
     expect(response.status).toBe(409);
@@ -198,11 +199,27 @@ describe('/api/ai-key', () => {
     const { cookie } = await signUp();
     await storeKey(cookie);
 
-    const response = await worker.fetch(del('/api/ai-key', { cookie }));
+    const response = await worker.fetch(del('/api/ai-key/anthropic', { cookie }));
 
     expect(response.status).toBe(204);
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
-    await expect(read.json()).resolves.toBeNull();
+    await expect(readSettings(cookie).then((r) => r.json())).resolves.toEqual({ connections: [] });
+  });
+
+  it('only deletes keys, not providers without one', async () => {
+    const { cookie } = await signUp();
+
+    const response = await worker.fetch(del('/api/ai-key/workers-ai', { cookie }));
+
+    expect(response.status).toBe(400);
+  });
+
+  it('cannot switch to a keyed provider before its key is stored', async () => {
+    const { cookie } = await signUp();
+
+    const response = await worker.fetch(put('/api/ai', { provider: 'anthropic' }, { cookie }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({ code: 'no_ai_key' });
   });
 
   it("keeps one user's key from another", async () => {
@@ -211,24 +228,24 @@ describe('/api/ai-key', () => {
     const second = await signUp();
     await storeKey(first.cookie);
 
-    const response = await worker.fetch(get('/api/ai-key', { cookie: second.cookie }));
+    const response = await readSettings(second.cookie);
 
-    await expect(response.json()).resolves.toBeNull();
+    await expect(response.json()).resolves.toEqual({ connections: [] });
   });
 });
 
-describe('POST /api/ai-key/test', () => {
+describe('POST /api/ai/test', () => {
   type Sent = { model: string; max_tokens: number };
 
   it('turns away a signed-out test', async () => {
-    const response = await worker.fetch(post('/api/ai-key/test', {}));
+    const response = await worker.fetch(post('/api/ai/test', {}));
     expect(response.status).toBe(401);
   });
 
   it('has nothing to test without a key', async () => {
     const { cookie } = await signUp();
 
-    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+    const response = await worker.fetch(post('/api/ai/test', {}, { cookie }));
 
     expect(response.status).toBe(409);
     await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({ code: 'no_ai_key' });
@@ -239,7 +256,7 @@ describe('POST /api/ai-key/test', () => {
     const { cookie } = await signUp();
     await storeKey(cookie, { model: 'claude-test-older' });
 
-    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+    const response = await worker.fetch(post('/api/ai/test', {}, { cookie }));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, model: 'claude-test-older' });
@@ -253,7 +270,7 @@ describe('POST /api/ai-key/test', () => {
     const { cookie } = await signUp();
     await storeKey(cookie);
 
-    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+    const response = await worker.fetch(post('/api/ai/test', {}, { cookie }));
 
     expect(response.status).toBe(200);
   });
@@ -267,7 +284,7 @@ describe('POST /api/ai-key/test', () => {
     const { cookie } = await signUp();
     await storeKey(cookie);
 
-    const response = await worker.fetch(post('/api/ai-key/test', {}, { cookie }));
+    const response = await worker.fetch(post('/api/ai/test', {}, { cookie }));
 
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toEqual({

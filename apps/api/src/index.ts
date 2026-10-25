@@ -1,15 +1,18 @@
 import {
-  aiKeyPatchSchema,
+  aiActivateSchema,
   aiKeyPutSchema,
+  aiModelPatchSchema,
+  canUseAiProvider,
+  KEYED_AI_PROVIDERS,
   parseRole,
   preferencesPatchSchema,
   roleUpdateSchema,
   suggestRequestSchema,
   type AdminUser,
   type AdminUsersResponse,
-  type AiKeyResponse,
-  type AiKeyTestResponse,
   type AiModelsResponse,
+  type AiSettings,
+  type AiTestResponse,
   type ApiErrorBody,
   type HealthResponse,
   type MeResponse,
@@ -22,12 +25,14 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
+import { z } from 'zod';
 
 import { listUsers, setRole } from './admin';
 import {
+  activateProvider,
   deleteAiKey,
-  getAiKey,
-  getAiKeyForUse,
+  getActiveConnection,
+  getAiSettings,
   getModels,
   saveAiKey,
   setAiModel,
@@ -54,7 +59,12 @@ app.onError((error, c) => {
   return c.json<ApiErrorBody>({ error: 'Internal server error' }, 500);
 });
 
-const NO_AI_KEY: ApiErrorBody = { error: 'No API key is stored', code: 'no_ai_key' };
+const NO_AI_KEY: ApiErrorBody = { error: 'No AI provider is set up', code: 'no_ai_key' };
+
+const NOT_ALLOWED: ApiErrorBody = {
+  error: 'Your role does not include that AI provider',
+  code: 'ai_not_allowed',
+};
 
 /**
  * In production the app and API share an origin, so CORS is a no-op. It only
@@ -140,45 +150,50 @@ app.patch(
   },
 );
 
-// The user's AI provider key. It goes in through PUT and never comes back out:
-// reads return the provider, the model and the key's last four characters.
-app.get('/api/ai-key', requireUser, async (c) =>
-  c.json<AiKeyResponse>(await getAiKey(c.env, c.get('userId'))),
+// The user's AI providers: which ones are set up, and which one is active.
+// Never a key - only its last four characters.
+app.get('/api/ai', requireUser, async (c) =>
+  c.json<AiSettings>(await getAiSettings(c.env, c.get('userId'))),
 );
 
+// Switches the active provider. Workers AI is set up here on first use; a
+// keyed provider needs its key stored first, through PUT /api/ai-key.
 app.put(
-  '/api/ai-key',
+  '/api/ai',
   requireUser,
-  zValidator('json', aiKeyPutSchema, (result, c) => {
-    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid key' }, 400);
+  zValidator('json', aiActivateSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid provider' }, 400);
   }),
-  async (c) => c.json<AiKeyResponse>(await saveAiKey(c.env, c.get('userId'), c.req.valid('json'))),
+  async (c) => {
+    const { provider } = c.req.valid('json');
+    if (!canUseAiProvider(provider, c.get('role'))) return c.json(NOT_ALLOWED, 403);
+
+    const result = await activateProvider(c.env, c.get('userId'), provider);
+    if (result.status === 'no_key') return c.json(NO_AI_KEY, 409);
+    return c.json<AiSettings>(result.settings);
+  },
 );
 
+// Changes the active provider's model.
 app.patch(
-  '/api/ai-key',
+  '/api/ai',
   requireUser,
-  zValidator('json', aiKeyPatchSchema, (result, c) => {
+  zValidator('json', aiModelPatchSchema, (result, c) => {
     if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid model' }, 400);
   }),
   async (c) => {
     const result = await setAiModel(c.env, c.get('userId'), c.req.valid('json').model);
     if (result.status === 'no_key') return c.json(NO_AI_KEY, 409);
     if (result.status === 'unknown_model') {
-      return c.json<ApiErrorBody>({ error: 'The key cannot use that model' }, 400);
+      return c.json<ApiErrorBody>({ error: 'The provider does not offer that model' }, 400);
     }
-    return c.json<AiKeyResponse>(result.key);
+    return c.json<AiSettings>(result.settings);
   },
 );
 
-app.delete('/api/ai-key', requireUser, async (c) => {
-  await deleteAiKey(c.env, c.get('userId'));
-  return c.body(null, 204);
-});
-
-// The models the key can use, from the cache unless it is a day old or
-// `?refresh=true` asks for a fresh list.
-app.get('/api/ai-key/models', requireUser, async (c) => {
+// The models the active provider offers, from the cache unless it is a day old
+// or `?refresh=true` asks for a fresh list.
+app.get('/api/ai/models', requireUser, async (c) => {
   const list = await getModels(c.env, c.get('userId'), {
     refresh: c.req.query('refresh') === 'true',
   });
@@ -189,18 +204,42 @@ app.get('/api/ai-key/models', requireUser, async (c) => {
   });
 });
 
-// A tiny real request with the stored key and model, so a key that lists
+// A tiny real request to the active provider and model, so a key that lists
 // models but cannot ask - no credit on the account, say - shows up in
 // settings rather than on the first ask. Failures come back as AI error codes.
-app.post('/api/ai-key/test', requireUser, async (c) => {
-  const key = await getAiKeyForUse(c.env, c.get('userId'));
-  if (!key) return c.json(NO_AI_KEY, 409);
+app.post('/api/ai/test', requireUser, async (c) => {
+  const active = await getActiveConnection(c.env, c.get('userId'));
+  if (!active) return c.json(NO_AI_KEY, 409);
+  if (!canUseAiProvider(active.provider, c.get('role'))) return c.json(NOT_ALLOWED, 403);
 
-  await ADAPTERS[key.provider].ping({ apiKey: key.apiKey, model: key.model });
-  return c.json<AiKeyTestResponse>({ ok: true, model: key.model });
+  await ADAPTERS[active.provider].ping({ access: active.access, model: active.model });
+  return c.json<AiTestResponse>({ ok: true, model: active.model });
 });
 
-// Three meal suggestions from the user's own model, with their likes &
+// A keyed provider's key. It goes in through PUT and never comes back out.
+// Storing one makes its provider the active one.
+app.put(
+  '/api/ai-key',
+  requireUser,
+  zValidator('json', aiKeyPutSchema, (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid key' }, 400);
+  }),
+  async (c) => c.json<AiSettings>(await saveAiKey(c.env, c.get('userId'), c.req.valid('json'))),
+);
+
+app.delete(
+  '/api/ai-key/:provider',
+  requireUser,
+  zValidator('param', z.object({ provider: z.enum(KEYED_AI_PROVIDERS) }), (result, c) => {
+    if (!result.success) return c.json<ApiErrorBody>({ error: 'Invalid provider' }, 400);
+  }),
+  async (c) => {
+    await deleteAiKey(c.env, c.get('userId'), c.req.valid('param').provider);
+    return c.body(null, 204);
+  },
+);
+
+// Three meal suggestions from the user's active provider, with their likes &
 // dislikes added to the prompt.
 app.post(
   '/api/suggest',
@@ -210,13 +249,14 @@ app.post(
   }),
   async (c) => {
     const userId = c.get('userId');
-    const key = await getAiKeyForUse(c.env, userId);
-    if (!key) return c.json(NO_AI_KEY, 409);
+    const active = await getActiveConnection(c.env, userId);
+    if (!active) return c.json(NO_AI_KEY, 409);
+    if (!canUseAiProvider(active.provider, c.get('role'))) return c.json(NOT_ALLOWED, 403);
 
     const { recipePreferences } = await readPreferences(c.env, userId);
     const response = await generateSuggestions(
-      ADAPTERS[key.provider],
-      { apiKey: key.apiKey, model: key.model },
+      ADAPTERS[active.provider],
+      { access: active.access, model: active.model },
       c.req.valid('json'),
       recipePreferences,
     );

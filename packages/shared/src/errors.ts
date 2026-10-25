@@ -3,8 +3,13 @@
  * and the client treats it as a generic failure.
  */
 export const API_ERROR_CODES = [
-  /** No API key is stored, so there is nothing to ask the model with. */
+  /**
+   * Nothing to ask the model with: no provider is active, or the one asked
+   * for needs a key and none is stored.
+   */
   'no_ai_key',
+  /** The user's role does not include the provider - Workers AI, after a demotion. */
+  'ai_not_allowed',
   /** The provider turned the stored key down. */
   'ai_key_invalid',
   /** The key works, but none of its models can return structured output. */

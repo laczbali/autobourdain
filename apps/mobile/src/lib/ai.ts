@@ -1,47 +1,68 @@
-import { AI_PROVIDER_LABELS, type AiKeyResponse, type AiProvider } from '@autobourdain/shared';
+import {
+  AI_PROVIDER_LABELS,
+  type AiConnection,
+  type AiProvider,
+  type AiSettings,
+} from '@autobourdain/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deleteAiKey, getAiKey, getAiModels, patchAiKey, putAiKey, testAiKey } from './api';
+import {
+  deleteAiKey,
+  getAiModels,
+  getAiSettings,
+  patchAiModel,
+  putAiActive,
+  putAiKey,
+  testAi,
+} from './api';
 import { errorCode } from './api-error';
 import { useSession } from './auth-client';
 
-/** Keyed by user, so one account's key never stands in for another's. */
-function aiKeyKey(userId: string | undefined) {
-  return ['ai-key', userId] as const;
+/** Keyed by user, so one account's setup never stands in for another's. */
+function aiSettingsKey(userId: string | undefined) {
+  return ['ai', userId] as const;
 }
 
-function aiModelsKey(userId: string | undefined) {
-  return ['ai-models', userId] as const;
+/** And by provider, since each one offers its own list. */
+function aiModelsKey(userId: string | undefined, provider?: AiProvider | null) {
+  return provider === undefined
+    ? (['ai-models', userId] as const)
+    : (['ai-models', userId, provider] as const);
 }
 
-/** The stored key's provider, model and hint, or null. Idle without a session. */
-export function useAiKey() {
+/** The provider suggestions come from, or null when none is. */
+export function activeConnection(settings: AiSettings): AiConnection | null {
+  return settings.connections.find(({ active }) => active) ?? null;
+}
+
+/** Every provider the user has set up, and which is active. Idle without a session. */
+export function useAiSettings() {
   const { data: session } = useSession();
   const userId = session?.user.id;
 
   return useQuery({
-    queryKey: aiKeyKey(userId),
-    queryFn: getAiKey,
+    queryKey: aiSettingsKey(userId),
+    queryFn: getAiSettings,
     enabled: Boolean(userId),
   });
 }
 
-/** The models the key can use. Only asked for once a key is stored. */
-export function useAiModels(hasKey: boolean) {
+/** The models the active provider offers. Only asked for once one is active. */
+export function useAiModels(provider: AiProvider | null) {
   const { data: session } = useSession();
   const userId = session?.user.id;
 
   return useQuery({
-    queryKey: aiModelsKey(userId),
+    queryKey: aiModelsKey(userId, provider),
     queryFn: () => getAiModels(),
-    enabled: Boolean(userId) && hasKey,
+    enabled: Boolean(userId) && provider !== null,
   });
 }
 
 /**
- * Every AI mutation, sharing one way of keeping the cache true: the key query
- * takes what the server answered, and the model list is fetched again
- * whenever the key behind it changed.
+ * Every AI mutation, sharing one way of keeping the cache true: the settings
+ * query takes what the server answered, and the model lists are fetched again
+ * whenever a key behind them changed.
  */
 function useAiCache() {
   const queryClient = useQueryClient();
@@ -49,32 +70,43 @@ function useAiCache() {
   const userId = session?.user.id;
 
   return {
-    setKey: (key: AiKeyResponse) => queryClient.setQueryData(aiKeyKey(userId), key),
-    // A refresh can move the user off a model that has gone, so the key is
-    // read again too.
-    refetchKey: () => queryClient.invalidateQueries({ queryKey: aiKeyKey(userId) }),
+    setSettings: (settings: AiSettings) =>
+      queryClient.setQueryData(aiSettingsKey(userId), settings),
+    // A refresh can move the user off a model that has gone, and a delete
+    // answers with nothing, so the settings are read again.
+    refetchSettings: () => queryClient.invalidateQueries({ queryKey: aiSettingsKey(userId) }),
     resetModels: () => queryClient.resetQueries({ queryKey: aiModelsKey(userId) }),
-    setModels: (models: Awaited<ReturnType<typeof getAiModels>>) =>
-      queryClient.setQueryData(aiModelsKey(userId), models),
+    setModels: (provider: AiProvider, models: Awaited<ReturnType<typeof getAiModels>>) =>
+      queryClient.setQueryData(aiModelsKey(userId, provider), models),
   };
 }
 
+/** Stores a key and makes its provider the active one. */
 export function useSaveAiKey() {
   const cache = useAiCache();
   return useMutation({
     mutationFn: putAiKey,
-    onSuccess: async (key) => {
-      cache.setKey(key);
+    onSuccess: async (settings) => {
+      cache.setSettings(settings);
       await cache.resetModels();
     },
+  });
+}
+
+/** Switches the active provider. Workers AI is set up on the way. */
+export function useActivateAi() {
+  const cache = useAiCache();
+  return useMutation({
+    mutationFn: putAiActive,
+    onSuccess: (settings) => cache.setSettings(settings),
   });
 }
 
 export function useUpdateAiModel() {
   const cache = useAiCache();
   return useMutation({
-    mutationFn: patchAiKey,
-    onSuccess: (key) => cache.setKey(key),
+    mutationFn: patchAiModel,
+    onSuccess: (settings) => cache.setSettings(settings),
   });
 }
 
@@ -83,27 +115,27 @@ export function useDeleteAiKey() {
   return useMutation({
     mutationFn: deleteAiKey,
     onSuccess: async () => {
-      cache.setKey(null);
+      await cache.refetchSettings();
       await cache.resetModels();
     },
   });
 }
 
-/** Asks the provider for the list again, rather than serving the cached one. */
-export function useRefreshAiModels() {
+/** Asks the active provider for its list again, rather than serving the cached one. */
+export function useRefreshAiModels(provider: AiProvider) {
   const cache = useAiCache();
   return useMutation({
     mutationFn: () => getAiModels(true),
     onSuccess: async (models) => {
-      cache.setModels(models);
-      await cache.refetchKey();
+      cache.setModels(provider, models);
+      await cache.refetchSettings();
     },
   });
 }
 
-/** A tiny real request with the stored key and model. Changes nothing stored. */
-export function useTestAiKey() {
-  return useMutation({ mutationFn: testAiKey });
+/** A tiny real request to the active provider and model. Changes nothing stored. */
+export function useTestAi() {
+  return useMutation({ mutationFn: testAi });
 }
 
 /**
@@ -118,7 +150,12 @@ export function aiErrorMessage(
 
   switch (errorCode(error)) {
     case 'no_ai_key':
-      return { message: 'Add an API key to get suggestions.', toSettings: true };
+      return { message: 'Set up an AI provider to get suggestions.', toSettings: true };
+    case 'ai_not_allowed':
+      return {
+        message: `${name} is for Pro and Admin users only. Choose another provider.`,
+        toSettings: true,
+      };
     case 'ai_key_invalid':
       return { message: `${name} did not accept the API key.`, toSettings: true };
     case 'ai_no_models':

@@ -3,13 +3,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
 import { AiError } from './errors';
-import type { AiProviderAdapter, GenerateRequest } from './types';
+import type { AiAccess, AiProviderAdapter, GenerateRequest } from './types';
 
 /** Three full recipes fit comfortably. Non-streaming, so it stays modest. */
 const MAX_TOKENS = 16000;
 
 /** Enough for "OK" - the connection test pays for a handful of tokens, no more. */
 const PING_MAX_TOKENS = 16;
+
+/** Listing models is a call to Anthropic with the user's key, so it is kept a day. */
+const MODELS_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Per attempt. The SDK retries rate limits, overloads and dropped connections twice. */
 const TIMEOUT_MS = 60_000;
@@ -21,15 +24,19 @@ const TIMEOUT_MS = 60_000;
  */
 const lowEffort = new Map<string, boolean>();
 
-function client(apiKey: string) {
+/** Anthropic always runs on the user's key, so a call without one is a bug here. */
+function client({ apiKey }: AiAccess) {
+  if (!apiKey) throw new Error("Anthropic needs the user's API key");
   return new Anthropic({ apiKey, timeout: TIMEOUT_MS });
 }
 
 export const anthropic: AiProviderAdapter = {
-  async listModels(apiKey) {
+  modelsTtlMs: MODELS_TTL_MS,
+
+  async listModels(access) {
     const models: AiModel[] = [];
     try {
-      for await (const model of client(apiKey).models.list({ limit: 100 })) {
+      for await (const model of client(access).models.list({ limit: 100 })) {
         // Every model offered has to be able to return the suggest schema.
         if (!model.capabilities?.structured_outputs.supported) continue;
         lowEffort.set(model.id, model.capabilities.effort.low.supported);
@@ -41,8 +48,8 @@ export const anthropic: AiProviderAdapter = {
     return models;
   },
 
-  async ping({ apiKey, model }) {
-    const api = client(apiKey);
+  async ping({ access, model }) {
+    const api = client(access);
     try {
       const effort = (await supportsLowEffort(api, model)) ? { effort: 'low' as const } : {};
       // Any answer will do, cut off or not: getting one at all is the test.
@@ -57,8 +64,8 @@ export const anthropic: AiProviderAdapter = {
     }
   },
 
-  async generate<T>({ apiKey, model, system, prompt, schema }: GenerateRequest<T>) {
-    const api = client(apiKey);
+  async generate<T>({ access, model, system, prompt, schema }: GenerateRequest<T>) {
+    const api = client(access);
     const format = zodOutputFormat(schema);
 
     let message: Anthropic.Beta.BetaMessage;

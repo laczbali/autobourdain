@@ -17,7 +17,7 @@ erDiagram
     user ||--o{ session : "has"
     user ||--o{ account : "signs in with"
     user ||--o{ user_preferences : "sets"
-    user ||--o| user_ai_credentials : "stores"
+    user ||--o{ user_ai_credentials : "sets up"
 
     user {
         text id PK
@@ -76,12 +76,13 @@ erDiagram
 
     user_ai_credentials {
         text user_id PK, FK
-        text provider "anthropic"
+        text provider PK "anthropic, workers-ai"
         text model
-        text encrypted_key "v1.iv.ciphertext"
-        text key_hint "last 4 characters"
+        text encrypted_key "nullable, v1.iv.ciphertext"
+        text key_hint "nullable, last 4 characters"
         text models "JSON"
         integer models_fetched_at "unix seconds"
+        integer is_active "boolean, one per user"
         integer created_at "unix seconds"
         integer updated_at "unix seconds"
     }
@@ -232,21 +233,42 @@ Current keys:
 
 ### `user_ai_credentials`
 
-A user's AI provider key, at most one per user - storing a new key replaces
-the old one. Read and written by `/api/ai-key` and used by `/api/suggest`
-([`../ai/credentials.ts`](../ai/credentials.ts)).
+The AI providers a user has set up, one row per provider, and which one is
+active. Read and written by `/api/ai` and `/api/ai-key`, and used by
+`/api/suggest` ([`../ai/credentials.ts`](../ai/credentials.ts)).
 
 | Column              | Property          | Type    | Null | Default     | Meaning                                 |
 | ------------------- | ----------------- | ------- | ---- | ----------- | --------------------------------------- |
-| `user_id`           | `userId`          | text    | no   |             | Primary key, `user.id`, cascade         |
+| `user_id`           | `userId`          | text    | no   |             | `user.id`, cascade on delete            |
 | `provider`          | `provider`        | text    | no   |             | One of `AI_PROVIDERS`, e.g. `anthropic` |
 | `model`             | `model`           | text    | no   |             | The chosen model's id                   |
-| `encrypted_key`     | `encryptedKey`    | text    | no   |             | The key, encrypted - see below          |
-| `key_hint`          | `keyHint`         | text    | no   |             | The key's last 4 characters             |
+| `encrypted_key`     | `encryptedKey`    | text    | yes  |             | The key, encrypted - see below          |
+| `key_hint`          | `keyHint`         | text    | yes  |             | The key's last 4 characters             |
 | `models`            | `models`          | text    | no   |             | JSON `[{ id, label }]`, cached          |
 | `models_fetched_at` | `modelsFetchedAt` | integer | no   |             | When `models` was fetched               |
+| `is_active`         | `isActive`        | integer | no   | `false`     | Boolean - suggestions come from this    |
 | `created_at`        | `createdAt`       | integer | no   | `unixepoch` |                                         |
 | `updated_at`        | `updatedAt`       | integer | no   | `unixepoch` | Set on every change                     |
+
+Primary key: `(user_id, provider)` - one row per provider per user. A partial
+unique index, `user_ai_credentials_one_active` on `user_id` where `is_active`
+is 1, lets the database refuse a second active row. Switching provider turns
+the others off and the new one on in one batch, in that order.
+
+**Two kinds of provider.** A keyed provider (`KEYED_AI_PROVIDERS` - Anthropic)
+runs on the user's own account, and its row carries the key and its hint. One
+without a key - Workers AI - runs on the app's Cloudflare account through the
+Worker's `AI` binding, and both columns are null. Its row is created the first
+time the user switches to it. A keyed row with no key reads as not set up.
+
+**Active is a choice, not a consequence.** Storing a key makes its provider
+active. Switching away keeps the key, so switching back needs no re-entry.
+Deleting the active key leaves nothing active, even when another provider is
+set up - the user picks again.
+
+**Who may use what is checked at the API, not here.** Workers AI is for pro
+and admin (`canUseAiProvider` in the shared package). A user demoted while on
+it keeps the row, active, and their asks are refused until they switch.
 
 **The key never leaves the Worker.** It is encrypted with AES-256-GCM under
 the `AI_KEY_ENCRYPTION_KEY` secret, with the user's id bound in, so a
@@ -254,15 +276,18 @@ ciphertext copied to another row does not decrypt
 ([`../ai/crypto.ts`](../ai/crypto.ts)). Reads return the provider, model and
 `key_hint` only. Losing the secret makes every stored key unreadable.
 
-**The model list is a cache.** It is what the provider listed for this key,
-filtered to models that can return structured output. It is served for 24
-hours, then fetched again with the key; a provider that cannot be reached gets
-the stale list served instead. Nothing is hardcoded: when the chosen model
-drops off a fresh list, the first listed model replaces it.
+**The model list is a cache.** It is what the provider's adapter listed,
+filtered to models that can return structured output, and each adapter says
+how long it is served for (`modelsTtlMs`). Anthropic's is fetched with the
+key and kept 24 hours; a provider that cannot be reached gets the stale list
+served instead. Workers AI's is `WORKERS_AI_MODELS` in
+[`../ai/workers-ai.ts`](../ai/workers-ai.ts), picked by hand, and is never
+served from the column, so a model added there shows up straight away. When
+the chosen model drops off a fresh list, the first listed model replaces it.
 
 **Zod is the only gate**, as for preferences. A row whose provider has since
-been removed reads as no key, and a `models` value that does not parse counts
-as never fetched.
+been removed is skipped, and a `models` value that does not parse counts as
+never fetched.
 
 ## Changing the schema
 

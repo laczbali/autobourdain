@@ -56,7 +56,6 @@ Each one's rail entry is `disabled` in
 
 ### Later
 
-- [ ] Decide what the `pro` role unlocks. It is a label only for now
 - [ ] Paginate the admin Users list once it outgrows one page - it loads every
       user at once
 - [ ] The dark palettes' `muted`, `control` and `rule` are derived, not
@@ -76,8 +75,10 @@ Each one's rail entry is `disabled` in
       Make them the user's to edit - the contract already takes any string
 - [ ] Likes & dislikes per meal type, once meal types are the user's - the
       prompt is built per ask and already knows the meal type
-- [ ] Rate limit asks per user. Each user pays for their own, so it is about
-      runaway clients rather than cost
+- [ ] Rate limit asks per user. Workers AI asks are billed to the app's
+      Cloudflare account, so for pro and admin it is about cost; own-key asks
+      only need protecting from runaway clients. Cloudflare's rate-limit
+      binding only counts over 10s or 60s, so a daily cap needs a D1 counter
 - [ ] A procedure for rotating `AI_KEY_ENCRYPTION_KEY`. The stored format is
       versioned (`v1.`) to allow it, but nothing reads a second secret yet
 - [ ] Another AI provider: an adapter in `apps/api/src/ai/`, an entry in
@@ -220,6 +221,14 @@ machine's LAN address on a phone. Set `EXPO_PUBLIC_API_URL` to override that -
 to work against the deployed API, say. CORS and `trustedOrigins` are already
 configured for the dev pair of ports.
 
+Workers AI has no local version. The `AI` binding always runs on the real
+Cloudflare account, so `npm run dev:api` needs the same one-off
+`npx wrangler login` as migrations, and refuses to start without it. Every
+Workers AI ask in development is billed like one in production. To work
+without a login, run `npm run dev:api -- --local`: remote bindings are off,
+and only Workers AI calls fail. To try Workers AI, make your user pro or admin
+on Settings -> Admin -> Users, or with `ADMIN_EMAILS`.
+
 To check what production will actually serve (single origin, real static
 assets, no hot reload):
 
@@ -268,10 +277,10 @@ The API tests run **inside the Workers runtime**, through
 and a real local D1 with `apps/api/migrations` applied before every test file.
 They live in `apps/api/test`, and they cover health, routing, CORS, the trusted
 origin list, email sign-up and sign-in, the Turnstile gate, the conditional
-GitHub provider, preferences, the stored AI key and its model list,
-`/api/suggest`, and roles with the admin routes.
+GitHub provider, preferences, the stored AI key and its model list, Workers AI
+and who may use it, `/api/suggest`, and roles with the admin routes.
 
-Four things to know before adding more:
+Five things to know before adding more:
 
 - **Storage is isolated per test file, not per test.** Everything in one file
   shares a database, so anything that writes a row takes a unique email from
@@ -284,6 +293,10 @@ Four things to know before adding more:
   global `fetch` - the Worker runs in the same isolate as the tests - and
   answers anything for `api.anthropic.com`, letting every other host through.
   No test needs a real key or spends anything.
+- **Workers AI is faked too.** The `AI` binding only exists remotely, and the
+  pool runs with `remoteBindings: false`, so in tests `env.AI` throws on any
+  touch. `test/fake-workers-ai.ts` puts a stand-in in its place through
+  `envWith()`, and sends requests straight to the Hono app.
 - **Bindings come from `vitest.config.ts`, not `.dev.vars`.** A test run must
   not depend on local secrets, or change when someone edits theirs.
 
@@ -376,8 +389,13 @@ merging `develop` into it when a deploy is wanted.
    bundle and `wrangler.jsonc` for the native WebView page, and is committed in
    both — it is public, and has to be in the bundle at build time.
 
-The D1 binding comes from `wrangler.jsonc`, so no database wiring is needed in
-the dashboard.
+The D1 and Workers AI bindings come from `wrangler.jsonc`, so no database or
+AI wiring is needed in the dashboard.
+
+Workers AI is billed to this account. The free plan covers 10,000 neurons a
+day, which is roughly a dozen asks on Llama 3.3 70B; past that, asks fail
+until 00:00 UTC unless the account is on Workers Paid, where they cost $0.011
+per 1,000 neurons. Only pro and admin users can pick it.
 
 ## Bot protection
 
@@ -450,13 +468,14 @@ For store builds:
 | `GET /api/me`                | Current user, or `null`                       |
 | `GET /api/preferences`       | The user's preferences, defaults filled in    |
 | `PATCH /api/preferences`     | Change some preferences; returns them all     |
-| `GET /api/ai-key`            | The stored AI key's provider, model and hint  |
-| `PUT /api/ai-key`            | Check a key with the provider, then store it  |
-| `PATCH /api/ai-key`          | Change the model                              |
-| `DELETE /api/ai-key`         | Remove the key                                |
-| `GET /api/ai-key/models`     | Models the key can use, cached for a day      |
-| `POST /api/ai-key/test`      | A tiny real request, to check key and billing |
-| `POST /api/suggest`          | Three meal suggestions from the user's model  |
+| `GET /api/ai`                | The user's AI providers, and the active one   |
+| `PUT /api/ai`                | Switch provider; Workers AI is pro and admin  |
+| `PATCH /api/ai`              | Change the active provider's model            |
+| `GET /api/ai/models`         | The active provider's models, cached a day    |
+| `POST /api/ai/test`          | A tiny real request, to check key and billing |
+| `PUT /api/ai-key`            | Check a key, store it, make it active         |
+| `DELETE /api/ai-key/:p`      | Remove a provider's key                       |
+| `POST /api/suggest`          | Three meal suggestions from the active model  |
 | `GET /api/admin/users`       | Admin only: every user and their role         |
 | `PATCH /api/admin/users/:id` | Admin only: change a user's role              |
 | `GET /api/turnstile`         | Turnstile widget page, for the native WebView |

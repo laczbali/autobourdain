@@ -13,7 +13,7 @@ import {
   type MealType,
 } from '@/components/today';
 import { Body } from '@/components/ui';
-import { aiErrorMessage, useAiKey } from '@/lib/ai';
+import { activeConnection, aiErrorMessage, useAiSettings } from '@/lib/ai';
 import { useSuggest } from '@/lib/suggest';
 
 /**
@@ -31,7 +31,8 @@ export default function Today() {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [portions, setPortions] = useState(1);
   const suggest = useSuggest();
-  const aiKey = useAiKey();
+  const ai = useAiSettings();
+  const active = ai.data ? activeConnection(ai.data) : undefined;
   const stacked = useStacked();
 
   const suggestions = suggest.data?.suggestions;
@@ -57,10 +58,14 @@ export default function Today() {
       onMealTypeChange={setMealType}
       onSuggest={submit}
       pending={suggest.isPending}
-      // Only once the key query says so, so it never flashes while loading.
+      // Only once the settings query says so, so it never flashes while loading.
       blocked={
-        aiKey.data === null ? (
-          <AiNotice tone="secondary" message="Add an API key to get suggestions." toSettings />
+        active === null ? (
+          <AiNotice
+            tone="secondary"
+            message="Set up an AI provider to get suggestions."
+            toSettings
+          />
         ) : undefined
       }
       stacked={stacked}
@@ -72,7 +77,7 @@ export default function Today() {
   ) : suggest.isError ? (
     // The accent, for want of a danger colour - see the README's Later list.
     <AiNotice
-      {...(aiErrorMessage(suggest.error, aiKey.data?.provider) ?? {
+      {...(aiErrorMessage(suggest.error, active?.provider) ?? {
         message: 'Those suggestions did not come through. Try again.',
         toSettings: false,
       })}

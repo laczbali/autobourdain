@@ -8,6 +8,10 @@ export default defineConfig({
     cloudflareTest(async () => ({
       // The real Worker config: same routes, same bindings, same D1.
       wrangler: { configPath: '../../wrangler.jsonc' },
+      // Workers AI only exists remotely, and a test must never spend neurons or
+      // need a Cloudflare login. Tests stub `env.AI` instead - see
+      // test/fake-workers-ai.ts.
+      remoteBindings: false,
       miniflare: {
         // Spelled out rather than read from .dev.vars - a test run must not
         // depend on a developer's local secrets, or change with them. Every

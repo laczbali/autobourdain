@@ -29,6 +29,20 @@
       "when": 1792958901375,
       "tag": "0003_user_role",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792963935549,
+      "tag": "0004_ai_credentials_is_active",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792963936467,
+      "tag": "0005_ai_credentials_per_provider",
+      "breakpoints": true
     }
   ]
 }

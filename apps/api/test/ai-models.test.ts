@@ -1,4 +1,4 @@
-import type { AiKeyResponse, AiModelsResponse, ApiErrorBody } from '@autobourdain/shared';
+import type { AiModelsResponse, AiSettings, ApiErrorBody } from '@autobourdain/shared';
 import { env } from 'cloudflare:workers';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -23,16 +23,16 @@ async function ageModels(userId: string) {
 const modelCalls = (calls: { path: string }[]) =>
   calls.filter(({ path }) => path === '/v1/models').length;
 
-describe('/api/ai-key/models', () => {
+describe('/api/ai/models', () => {
   it('turns away a signed-out read', async () => {
-    const response = await worker.fetch(get('/api/ai-key/models'));
+    const response = await worker.fetch(get('/api/ai/models'));
     expect(response.status).toBe(401);
   });
 
   it('has nothing to list without a key', async () => {
     const { cookie } = await signUp();
 
-    const response = await worker.fetch(get('/api/ai-key/models', { cookie }));
+    const response = await worker.fetch(get('/api/ai/models', { cookie }));
 
     expect(response.status).toBe(409);
     await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({ code: 'no_ai_key' });
@@ -43,7 +43,7 @@ describe('/api/ai-key/models', () => {
     const { cookie } = await signUpWithKey();
     calls.length = 0;
 
-    const response = await worker.fetch(get('/api/ai-key/models', { cookie }));
+    const response = await worker.fetch(get('/api/ai/models', { cookie }));
 
     expect(response.status).toBe(200);
     const body = await response.json<AiModelsResponse>();
@@ -61,7 +61,7 @@ describe('/api/ai-key/models', () => {
     await ageModels(userId);
     calls.length = 0;
 
-    await worker.fetch(get('/api/ai-key/models', { cookie }));
+    await worker.fetch(get('/api/ai/models', { cookie }));
 
     expect(modelCalls(calls)).toBe(1);
   });
@@ -71,7 +71,7 @@ describe('/api/ai-key/models', () => {
     const { cookie } = await signUpWithKey();
     calls.length = 0;
 
-    await worker.fetch(get('/api/ai-key/models?refresh=true', { cookie }));
+    await worker.fetch(get('/api/ai/models?refresh=true', { cookie }));
 
     expect(modelCalls(calls)).toBe(1);
   });
@@ -84,7 +84,7 @@ describe('/api/ai-key/models', () => {
       .run();
     calls.length = 0;
 
-    const response = await worker.fetch(get('/api/ai-key/models', { cookie }));
+    const response = await worker.fetch(get('/api/ai/models', { cookie }));
 
     expect(response.status).toBe(200);
     expect(modelCalls(calls)).toBe(1);
@@ -99,7 +99,7 @@ describe('/api/ai-key/models', () => {
       errorResponse(529, 'overloaded_error', 'Overloaded'),
     );
 
-    const response = await worker.fetch(get('/api/ai-key/models', { cookie }));
+    const response = await worker.fetch(get('/api/ai/models', { cookie }));
 
     expect(response.status).toBe(200);
     await expect(response.json<AiModelsResponse>()).resolves.toMatchObject({
@@ -114,7 +114,7 @@ describe('/api/ai-key/models', () => {
       errorResponse(401, 'authentication_error', 'invalid x-api-key'),
     );
 
-    const response = await worker.fetch(get('/api/ai-key/models?refresh=true', { cookie }));
+    const response = await worker.fetch(get('/api/ai/models?refresh=true', { cookie }));
 
     expect(response.status).toBe(422);
     await expect(response.json<ApiErrorBody>()).resolves.toMatchObject({
@@ -134,11 +134,11 @@ describe('/api/ai-key/models', () => {
     );
     fakeAnthropic({ models: [{ id: 'claude-test-newest' }] });
 
-    await worker.fetch(get('/api/ai-key/models?refresh=true', { cookie }));
+    await worker.fetch(get('/api/ai/models?refresh=true', { cookie }));
 
-    const read = await worker.fetch(get('/api/ai-key', { cookie }));
-    await expect(read.json<AiKeyResponse>()).resolves.toMatchObject({
-      model: 'claude-test-newest',
+    const read = await worker.fetch(get('/api/ai', { cookie }));
+    await expect(read.json<AiSettings>()).resolves.toMatchObject({
+      connections: [{ provider: 'anthropic', model: 'claude-test-newest' }],
     });
   });
 });

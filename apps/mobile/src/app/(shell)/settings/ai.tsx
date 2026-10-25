@@ -1,93 +1,149 @@
 import {
   AI_PROVIDER_LABELS,
   AI_PROVIDERS,
-  type AiKey,
+  canUseAiProvider,
+  isKeyedAiProvider,
+  type AiConnection,
   type AiProvider,
+  type KeyedAiProvider,
 } from '@autobourdain/shared';
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { SectionHeader, SettingsPage } from '@/components/settings';
 import { Button, Caption, Card, Chip, Field, Label, Select } from '@/components/ui';
+import { useRole } from '@/lib/admin';
 import {
   aiErrorMessage,
-  useAiKey,
+  useActivateAi,
   useAiModels,
+  useAiSettings,
   useDeleteAiKey,
   useRefreshAiModels,
   useSaveAiKey,
-  useTestAiKey,
+  useTestAi,
   useUpdateAiModel,
 } from '@/lib/ai';
 import { useTheme } from '@/theme/theme-provider';
 
+const NOTES: Record<'keyed' | 'app', string> = {
+  keyed: 'Suggestions come from your own provider account, through your key.',
+  app: "Suggestions run on Workers AI, on the app's own account. No key needed.",
+};
+
 /**
- * The user's own AI provider: which one, the key, and the model. Not in `d5b`,
- * so it takes Appearance's shape - a header, then a card per decision.
+ * Where suggestions come from: the provider, its key if it takes one, and the
+ * model. Not in `d5b`, so it takes Appearance's shape - a header, then a card
+ * per decision.
  *
- * The key goes in and never comes back out. Once stored, all that shows is
- * its last four characters.
+ * The chips pick the active provider. One that needs no key, or whose key is
+ * stored, switches straight away; a keyed one without a key opens its form,
+ * and saving the key switches. A stored key stays when switching away.
+ *
+ * Workers AI is offered to pro and admin only. Someone demoted while on it
+ * still sees it, so they can tell why asks stopped, and switch.
+ *
+ * A key goes in and never comes back out. Once stored, all that shows is its
+ * last four characters.
  */
 export default function AiSettings() {
   const { palette } = useTheme();
-  const key = useAiKey();
-  const stored = key.data ?? null;
-  const [chosen, setChosen] = useState<AiProvider | null>(null);
-  const provider = chosen ?? stored?.provider ?? AI_PROVIDERS[0];
+  const role = useRole();
+  const settings = useAiSettings();
+  const activate = useActivateAi();
+  const [opened, setOpened] = useState<KeyedAiProvider | null>(null);
+
+  const connections = settings.data?.connections ?? [];
+  const active = connections.find((connection) => connection.active) ?? null;
+  // A switch shows straight away; the stored one catches up when it lands.
+  const provider: AiProvider =
+    (activate.isPending ? activate.variables.provider : null) ??
+    opened ??
+    active?.provider ??
+    AI_PROVIDERS[0];
+  const connection = connections.find((stored) => stored.provider === provider) ?? null;
+  const offered = AI_PROVIDERS.filter(
+    (option) => canUseAiProvider(option, role) || option === active?.provider,
+  );
+
+  const choose = (option: AiProvider) => {
+    const stored = connections.some((existing) => existing.provider === option);
+    if (isKeyedAiProvider(option) && !stored) {
+      setOpened(option);
+      return;
+    }
+    setOpened(null);
+    if (option !== active?.provider) activate.mutate({ provider: option });
+  };
 
   return (
     <SettingsPage>
-      <SectionHeader
-        title="AI"
-        note="Suggestions come from your own provider account, through your key."
-      />
+      <SectionHeader title="AI" note={NOTES[isKeyedAiProvider(provider) ? 'keyed' : 'app']} />
 
-      {key.isPending ? (
+      {settings.isPending ? (
         <View className="self-start">
           <ActivityIndicator color={palette.accent} />
         </View>
-      ) : key.isError ? (
+      ) : settings.isError ? (
         <Caption tone="accent">The AI settings did not load. Try again later.</Caption>
       ) : (
         <>
           <Card className="gap-3">
             <Label>Provider</Label>
             <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
-              {AI_PROVIDERS.map((option) => (
+              {offered.map((option) => (
                 <Chip
                   key={option}
                   label={AI_PROVIDER_LABELS[option]}
                   selected={provider === option}
-                  onPress={() => setChosen(option)}
+                  onPress={() => choose(option)}
                 />
               ))}
             </View>
+            {activate.isError && (
+              <Caption tone="accent">
+                {aiErrorMessage(activate.error, activate.variables?.provider)?.message ??
+                  'That did not switch. Try again.'}
+              </Caption>
+            )}
           </Card>
 
-          <KeyCard
-            // A new provider needs a new key, so the form starts over.
-            key={provider}
-            provider={provider}
-            stored={stored?.provider === provider ? stored : null}
-          />
+          {isKeyedAiProvider(provider) && (
+            <KeyCard
+              // A new provider needs a new key, so the form starts over.
+              key={provider}
+              provider={provider}
+              stored={connection}
+            />
+          )}
 
-          {stored && stored.provider === provider && (
+          {!canUseAiProvider(provider, role) ? (
+            <Card>
+              <Caption tone="secondary">
+                {`${AI_PROVIDER_LABELS[provider]} is for Pro and Admin users only. Choose another provider to keep getting suggestions.`}
+              </Caption>
+            </Card>
+          ) : connection?.active ? (
             <>
-              <ModelCard stored={stored} />
+              <ModelCard connection={connection} />
               <ConnectionCard
-                // A result only speaks for the key and model it was run with.
-                key={`${stored.keyHint}:${stored.model}`}
-                stored={stored}
+                // A result only speaks for the provider, key and model it was run with.
+                key={`${connection.provider}:${connection.keyHint}:${connection.model}`}
+                connection={connection}
               />
             </>
-          )}
+          ) : activate.isPending ? (
+            <View className="self-start">
+              <ActivityIndicator color={palette.accent} />
+            </View>
+          ) : null}
         </>
       )}
     </SettingsPage>
   );
 }
 
-function KeyCard({ provider, stored }: { provider: AiProvider; stored: AiKey | null }) {
+function KeyCard({ provider, stored }: { provider: KeyedAiProvider; stored: AiConnection | null }) {
   const save = useSaveAiKey();
   const remove = useDeleteAiKey();
   const [editing, setEditing] = useState(false);
@@ -169,7 +225,7 @@ function KeyCard({ provider, stored }: { provider: AiProvider; stored: AiKey | n
               variant="secondary"
               size="sm"
               pending={remove.isPending}
-              onPress={() => remove.mutate()}
+              onPress={() => remove.mutate(provider)}
             />
             <Button
               title="Keep it"
@@ -199,17 +255,18 @@ function KeyCard({ provider, stored }: { provider: AiProvider; stored: AiKey | n
   );
 }
 
-function ModelCard({ stored }: { stored: AiKey }) {
+function ModelCard({ connection }: { connection: AiConnection }) {
   const { palette } = useTheme();
-  const models = useAiModels(true);
-  const refresh = useRefreshAiModels();
+  const models = useAiModels(connection.provider);
+  const refresh = useRefreshAiModels(connection.provider);
   const update = useUpdateAiModel();
-  const name = AI_PROVIDER_LABELS[stored.provider];
+  const name = AI_PROVIDER_LABELS[connection.provider];
+  const keyed = isKeyedAiProvider(connection.provider);
 
   const list = models.data?.models ?? [];
   const labels = new Map(list.map(({ id, label }) => [id, label]));
   // The pick shows straight away; the stored model catches up when it saves.
-  const current = update.isPending ? update.variables.model : stored.model;
+  const current = update.isPending ? update.variables.model : connection.model;
   const failure = refresh.error ?? models.error;
 
   return (
@@ -229,25 +286,30 @@ function ModelCard({ stored }: { stored: AiKey }) {
         />
       )}
 
-      <View className="flex-row items-center gap-3">
-        <Caption className="flex-1">
-          {models.data
-            ? `The models your key can use, from ${name}. Updated ${formatDate(models.data.fetchedAt)}.`
-            : `The models your key can use, from ${name}.`}
-        </Caption>
-        <Button
-          title="Refresh"
-          variant="ghost"
-          size="sm"
-          pending={refresh.isPending}
-          onPress={() => refresh.mutate()}
-        />
-      </View>
+      {keyed ? (
+        <View className="flex-row items-center gap-3">
+          <Caption className="flex-1">
+            {models.data
+              ? `The models your key can use, from ${name}. Updated ${formatDate(models.data.fetchedAt)}.`
+              : `The models your key can use, from ${name}.`}
+          </Caption>
+          <Button
+            title="Refresh"
+            variant="ghost"
+            size="sm"
+            pending={refresh.isPending}
+            onPress={() => refresh.mutate()}
+          />
+        </View>
+      ) : (
+        // Picked by hand for the app, so there is nothing to refresh.
+        <Caption>{`The ${name} models picked for this app.`}</Caption>
+      )}
 
       {update.isError && <Caption tone="accent">That change did not save. Try again.</Caption>}
       {failure && (
         <Caption tone="accent">
-          {aiErrorMessage(failure, stored.provider)?.message ??
+          {aiErrorMessage(failure, connection.provider)?.message ??
             'The model list did not load. Try again.'}
         </Caption>
       )}
@@ -256,19 +318,21 @@ function ModelCard({ stored }: { stored: AiKey }) {
 }
 
 /**
- * Sends the smallest real request with the stored key and model. Saving a key
- * only lists models, which works even on an account that cannot pay for an
- * ask - this is what catches that.
+ * Sends the smallest real request to the active provider and model. Saving a
+ * key only lists models, which works even on an account that cannot pay for
+ * an ask - this is what catches that.
  */
-function ConnectionCard({ stored }: { stored: AiKey }) {
-  const test = useTestAiKey();
-  const name = AI_PROVIDER_LABELS[stored.provider];
+function ConnectionCard({ connection }: { connection: AiConnection }) {
+  const test = useTestAi();
+  const name = AI_PROVIDER_LABELS[connection.provider];
 
   return (
     <Card className="gap-3">
       <View className="flex-row items-center gap-3">
         <Caption className="flex-1">
-          {`Sends ${name} a tiny request with your key and model. Costs a few tokens.`}
+          {isKeyedAiProvider(connection.provider)
+            ? `Sends ${name} a tiny request with your key and model. Costs a few tokens.`
+            : `Sends ${name} a tiny request with the chosen model. Costs next to nothing.`}
         </Caption>
         <Button
           title="Test connection"
@@ -282,7 +346,7 @@ function ConnectionCard({ stored }: { stored: AiKey }) {
       {test.isSuccess && <Caption tone="secondary">It works - the model answered.</Caption>}
       {test.isError && (
         <Caption tone="accent">
-          {aiErrorMessage(test.error, stored.provider)?.message ??
+          {aiErrorMessage(test.error, connection.provider)?.message ??
             'The test did not go through. Try again.'}
         </Caption>
       )}

@@ -5,7 +5,7 @@ import {
 } from '@autobourdain/shared';
 
 import { AiError } from '../ai/errors';
-import type { AiProviderAdapter } from '../ai/types';
+import type { AiAccess, AiProviderAdapter } from '../ai/types';
 import { buildPrompt, buildSystem } from './prompt';
 import { modelOutputSchema, type ModelOutput } from './schema';
 
@@ -18,7 +18,7 @@ import { modelOutputSchema, type ModelOutput } from './schema';
  */
 export async function generateSuggestions(
   adapter: AiProviderAdapter,
-  call: { apiKey: string; model: string },
+  call: { access: AiAccess; model: string },
   request: SuggestRequest,
   recipePreferences: string,
 ): Promise<SuggestResponse> {
