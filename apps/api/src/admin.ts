@@ -13,12 +13,17 @@ import { user } from './db/schema';
 
 /**
  * Why a role cannot be changed from the Users page. An admin's own role is
- * locked so the last admin can never be demoted, and a listed email's because
- * ADMIN_EMAILS would put it back on the next sign-in.
+ * locked so the last admin can never be demoted, and a listed, verified email's
+ * because ADMIN_EMAILS would put it back on the next sign-in. An unverified one
+ * is never promoted, so it stays open - to delete whoever squatted the address.
  */
-function lockFor(env: Env, viewerId: string, row: { id: string; email: string }): RoleLock | null {
+function lockFor(
+  env: Env,
+  viewerId: string,
+  row: { id: string; email: string; emailVerified: boolean },
+): RoleLock | null {
   if (row.id === viewerId) return 'self';
-  if (isAdminEmail(env, row.email)) return 'admin_emails';
+  if (row.emailVerified && isAdminEmail(env, row.email)) return 'admin_emails';
   return null;
 }
 
@@ -29,17 +34,18 @@ export async function listUsers(env: Env, viewerId: string): Promise<AdminUser[]
       id: user.id,
       name: user.name,
       email: user.email,
+      emailVerified: user.emailVerified,
       role: user.role,
       createdAt: user.createdAt,
     })
     .from(user)
     .orderBy(asc(user.createdAt), asc(user.email));
 
-  return rows.map((row) => ({
+  return rows.map(({ emailVerified, ...row }) => ({
     ...row,
     role: parseRole(row.role),
     createdAt: row.createdAt.toISOString(),
-    locked: lockFor(env, viewerId, row),
+    locked: lockFor(env, viewerId, { ...row, emailVerified }),
   }));
 }
 
@@ -56,7 +62,7 @@ export async function setRole(
 ): Promise<SetRoleResult> {
   const db = drizzle(env.DB);
   const [row] = await db
-    .select({ id: user.id, email: user.email })
+    .select({ id: user.id, email: user.email, emailVerified: user.emailVerified })
     .from(user)
     .where(eq(user.id, userId));
   if (!row) return { status: 'not_found' };
@@ -95,7 +101,12 @@ export async function deleteUser(
 ): Promise<DeleteUserResult> {
   const db = drizzle(env.DB);
   const [row] = await db
-    .select({ id: user.id, email: user.email, role: user.role })
+    .select({
+      id: user.id,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      role: user.role,
+    })
     .from(user)
     .where(eq(user.id, userId));
   if (!row) return { status: 'not_found' };

@@ -42,8 +42,8 @@ AI, their likes & dislikes under Settings -> Preferences, and
 - [ ] Try a real ask against a real key - the tests only ever talk to a fake
       Anthropic
 - [ ] Set `ADMIN_EMAILS` as a secret in the dashboard (see Deploying) before
-      the first deploy that carries roles, then sign out and back in to pick up
-      admin
+      the first deploy that carries roles, then sign out and back in with
+      GitHub to pick up admin
 
 **2. Followup steps**
 
@@ -173,9 +173,17 @@ cp .dev.vars.example .dev.vars
 Put a random value in `BETTER_AUTH_SECRET` and in `AI_KEY_ENCRYPTION_KEY`
 (`openssl rand -base64 32` for each). `.dev.vars` is gitignored.
 
-Put your own email in `ADMIN_EMAILS` to get Settings -> Admin locally. It
-makes the listed addresses admin on sign-up, or on their next sign-in for an
-account that already exists.
+To get Settings -> Admin locally, either put your GitHub email in
+`ADMIN_EMAILS` and sign in with GitHub (which needs `GITHUB_CLIENT_ID` and
+`GITHUB_CLIENT_SECRET` in `.dev.vars`), or promote yourself in the local
+database:
+
+```bash
+npx wrangler d1 execute autobourdain --local --command "UPDATE user SET role = 'admin' WHERE email = 'you@example.com'"
+```
+
+`ADMIN_EMAILS` only counts a verified email, and only GitHub verifies one -
+an email and password account is never promoted by it.
 
 `AI_KEY_ENCRYPTION_KEY` encrypts the API keys users store under Settings ->
 AI. Changing it makes the stored keys unreadable, which locally just means
@@ -371,11 +379,12 @@ merging `develop` into it when a deploy is wanted.
      it makes every stored key unreadable, and every user has to enter theirs
      again
    - `ADMIN_EMAILS` - comma-separated addresses to make admin, on sign-up or
-     their next sign-in. A secret only to keep them out of the repo. Meant for
-     addresses that already have an account: email sign-up does not verify the
-     address, so a listed one nobody holds yet goes to whoever registers it
-     first. It only grants admin - removing an address demotes no one, which
-     is done on the Users page instead
+     their next sign-in. A secret only to keep them out of the repo. Only a
+     verified email counts, and only GitHub verifies one, so an admin signs
+     in with GitHub. An email and password account on a listed address stays
+     normal, and can be deleted on the Users page. It only grants admin -
+     removing an address demotes no one, which is done on the Users page
+     instead
 4. Set `BETTER_AUTH_URL` in `wrangler.jsonc` to `https://autobourdain.blaczko.com`
    — the deployed origin — and push.
 

@@ -128,7 +128,8 @@ additional field with `input: false` ([`../auth.ts`](../auth.ts)), so it comes
 back on the session user but no sign-up or update-user body can set it. Only
 two things change it: `PATCH /api/admin/users/:id`
 ([`../admin.ts`](../admin.ts)), and the `ADMIN_EMAILS` secret, which makes a
-listed address admin on sign-up or on its next sign-in. `ADMIN_EMAILS` only
+listed address admin on sign-up or on its next sign-in, provided
+`email_verified` is set - in practice, a GitHub account. `ADMIN_EMAILS` only
 ever grants admin - taking an address off the list demotes no one.
 
 `ROLES` lives in

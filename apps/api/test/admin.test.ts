@@ -3,6 +3,7 @@ import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { env } from 'cloudflare:workers';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { createAuth } from '../src/auth';
 import app from '../src/index';
 import {
   addAppRows,
@@ -17,6 +18,7 @@ import {
   signUp,
   testUser,
   userIdFor,
+  type TestUser,
   worker,
 } from './helpers';
 
@@ -24,9 +26,16 @@ import {
 const LISTED_EMAIL = 'listed-admin@example.com';
 
 // Signed up once for the whole file - the address can only be taken once.
+// Verified straight in the table, as GitHub would have, then signed in again
+// so ADMIN_EMAILS can promote it.
 let listedCookie: string;
 beforeAll(async () => {
-  ({ cookie: listedCookie } = await signUp(testUser({ email: LISTED_EMAIL })));
+  const { user } = await signUp(testUser({ email: LISTED_EMAIL }));
+  await verifyEmail(user.email);
+  const response = await worker.fetch(
+    post('/api/auth/sign-in/email', { email: user.email, password: user.password }),
+  );
+  listedCookie = sessionCookie(response);
 });
 
 async function me(cookie: string) {
@@ -34,6 +43,25 @@ async function me(cookie: string) {
   const { user } = await response.json<MeResponse>();
   return user;
 }
+
+/** Marks an email verified the way only a GitHub sign-in can here. */
+async function verifyEmail(email: string): Promise<void> {
+  await env.DB.prepare('UPDATE user SET email_verified = 1 WHERE email = ?').bind(email).run();
+}
+
+/** The Worker with some bindings replaced, for one request. */
+async function fetchWith(request: Request, overrides: Record<string, unknown>) {
+  const ctx = createExecutionContext();
+  const response = await app.fetch(request, envWith(overrides), ctx);
+  await waitOnExecutionContext(ctx);
+  return response;
+}
+
+const signIn = (user: TestUser, overrides: Record<string, unknown>) =>
+  fetchWith(
+    post('/api/auth/sign-in/email', { email: user.email, password: user.password }),
+    overrides,
+  );
 
 /** Makes a user admin the way nothing in the app can: straight in the table. */
 async function makeAdmin(cookie: string): Promise<string> {
@@ -64,20 +92,44 @@ describe('roles', () => {
     expect((await me(sessionCookie(response)))?.role).toBe('normal');
   });
 
-  it('makes a listed email admin on sign-up', async () => {
-    expect((await me(listedCookie))?.role).toBe('admin');
+  it('makes a listed, verified email admin on sign-up', async () => {
+    // GitHub's sign-up, which is the only one that arrives verified.
+    const email = testUser().email;
+    const { internalAdapter } = await createAuth(
+      envWith({ ADMIN_EMAILS: email }),
+      'http://localhost',
+    ).$context;
+
+    const created = await internalAdapter.createUser({
+      name: 'Test Person',
+      email,
+      emailVerified: true,
+    });
+
+    expect(created.role).toBe('admin');
+  });
+
+  it('leaves a listed email normal on password sign-up, and on sign-in after', async () => {
+    const user = testUser();
+    const listed = { ADMIN_EMAILS: user.email };
+
+    const signedUp = await fetchWith(post('/api/auth/sign-up/email', user), listed);
+    expect(signedUp.status).toBe(200);
+    expect((await me(sessionCookie(signedUp)))?.role).toBe('normal');
+
+    const signedIn = await signIn(user, listed);
+    expect(signedIn.status).toBe(200);
+    expect((await me(sessionCookie(signedIn)))?.role).toBe('normal');
   });
 
   it('promotes an existing listed account on sign-in, and keeps it promoted', async () => {
     const { user } = await signUp();
+    await verifyEmail(user.email);
+
     // Listed only for this sign-in, in another case and among others.
-    const ctx = createExecutionContext();
-    const response = await app.fetch(
-      post('/api/auth/sign-in/email', { email: user.email, password: user.password }),
-      envWith({ ADMIN_EMAILS: ` someone@example.com , ${user.email.toUpperCase()} ` }),
-      ctx,
-    );
-    await waitOnExecutionContext(ctx);
+    const response = await signIn(user, {
+      ADMIN_EMAILS: ` someone@example.com , ${user.email.toUpperCase()} `,
+    });
     expect(response.status).toBe(200);
 
     // Back on the Worker's own config, where the address is not listed.
@@ -251,6 +303,23 @@ describe('DELETE /api/admin/users/:id', () => {
     const id = await userIdFor(listedCookie);
     expect((await deleteUser(id, adminCookie)).status).toBe(409);
     expect((await rowsFor(id)).user).toBe(1);
+  });
+
+  it('deletes a user whose listed email is not verified', async () => {
+    const { user, cookie } = await signUp();
+    const id = await userIdFor(cookie);
+    const listed = { ADMIN_EMAILS: user.email };
+
+    const list = await fetchWith(get('/api/admin/users', { cookie: adminCookie }), listed);
+    const { users } = await list.json<AdminUsersResponse>();
+    expect(users.find((row) => row.id === id)?.locked).toBeNull();
+
+    const response = await fetchWith(
+      del(`/api/admin/users/${id}`, { cookie: adminCookie }),
+      listed,
+    );
+    expect(response.status).toBe(204);
+    expect((await rowsFor(id)).user).toBe(0);
   });
 
   it('deletes a user and everything that was theirs, and signs them out', async () => {

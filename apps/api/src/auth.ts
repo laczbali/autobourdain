@@ -87,12 +87,16 @@ export function createAuth(env: Env, requestOrigin: string) {
       },
     },
     // ADMIN_EMAILS only ever grants admin, never takes it away. A new account
-    // gets it on sign-up, an existing one on its next sign-in.
+    // gets it on sign-up, an existing one on its next sign-in. Only a verified
+    // email counts, or anyone could sign up with a listed address. Nothing
+    // verifies a password account, so in practice this is GitHub only.
     databaseHooks: {
       user: {
         create: {
           before: async (user) => {
-            if (isAdminEmail(env, user.email)) return { data: { ...user, role: 'admin' } };
+            if (user.emailVerified && isAdminEmail(env, user.email)) {
+              return { data: { ...user, role: 'admin' } };
+            }
           },
         },
       },
@@ -108,6 +112,7 @@ export function createAuth(env: Env, requestOrigin: string) {
                 and(
                   eq(schema.user.id, session.userId),
                   ne(schema.user.role, 'admin'),
+                  eq(schema.user.emailVerified, true),
                   inArray(sql`lower(${schema.user.email})`, emails),
                 ),
               );
